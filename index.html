@@ -110,7 +110,7 @@
         </div>
     </header>
 
-    <!-- SUBMENU SELECTOR (luôn có nút "TẤT CẢ") -->
+    <!-- SUBMENU SELECTOR -->
     <div class="submenu-height bg-white border-b border-slate-200 flex items-center px-10 overflow-x-auto custom-scroll gap-2" id="subMenu"></div>
 
     <!-- MAIN TABLE CONTENT -->
@@ -206,7 +206,6 @@
                 }
                 return "PENDING";
             },
-            // Tìm chỉ số của cột tiến độ (để hiển thị dropdown)
             findProgressColumnIndex: (headers) => {
                 const keywords = ["tiến độ", "trạng thái", "progress"];
                 for (let i = 0; i < headers.length; i++) {
@@ -215,7 +214,7 @@
                         return i;
                     }
                 }
-                return -1; // không tìm thấy
+                return -1;
             }
         };
 
@@ -227,12 +226,10 @@
         function getCurrentData() {
             const mainData = getDataForMain(currentMainKey);
             if (currentSubName === "TẤT CẢ") {
-                // Hợp nhất tất cả các mảng con
                 const allRows = [];
                 const allHeaders = [];
                 for (const sub in mainData) {
                     if (mainData[sub].headers) {
-                        // Lấy headers từ sub đầu tiên (giả sử các sub có cùng cấu trúc)
                         if (allHeaders.length === 0) {
                             allHeaders.push(...mainData[sub].headers);
                         }
@@ -246,7 +243,6 @@
         }
 
         function getAllTasks() {
-            // Tất cả nhiệm vụ từ mọi menu chính (dùng cho dashboard tổng)
             const allRows = [];
             for (const main in tasks) {
                 for (const sub in tasks[main]) {
@@ -306,9 +302,8 @@
                 const thead = document.getElementById('tableHeader');
                 const emptyView = document.getElementById('noDataView');
 
-                // Render header động
                 if (headers.length === 0) {
-                    thead.innerHTML = ''; // không có header
+                    thead.innerHTML = '';
                 } else {
                     thead.innerHTML = headers.map(h => 
                         `<th class="p-4 text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">${h}</th>`
@@ -322,12 +317,9 @@
                 }
 
                 emptyView.classList.add('hidden');
-
-                // Tìm cột tiến độ để hiển thị dropdown
                 const progressColIndex = utils.findProgressColumnIndex(headers);
-
-                // Tạo các dòng dữ liệu
                 const fragment = document.createDocumentFragment();
+
                 rows.forEach((row, index) => {
                     const tr = document.createElement('tr');
                     tr.className = 'hover:bg-slate-50 transition';
@@ -337,9 +329,9 @@
                         td.className = 'p-4 text-sm';
 
                         if (i === progressColIndex) {
-                            // Cột tiến độ: hiển thị dropdown + badge
                             const progressValue = row[headers[i]] || CONFIG.progressOptions[0];
-                            const status = utils.getStatus(progressValue, row["Hạn giao"] || row["Hạn"] || "");
+                            const deadlineStr = row["Hạn giao"] || row["Hạn"] || "";
+                            const status = utils.getStatus(progressValue, deadlineStr);
                             
                             let badgeClass = "bg-blue-100 text-blue-700";
                             let badgeText = "Đang làm";
@@ -360,13 +352,11 @@
                                 </div>
                             `;
                         } else {
-                            // Các cột khác: hiển thị text bình thường
                             td.textContent = row[headers[i]] || '';
                             td.classList.add('text-slate-800');
                         }
                         tr.appendChild(td);
                     }
-
                     fragment.appendChild(tr);
                 });
 
@@ -376,7 +366,6 @@
             },
 
             stats: () => {
-                // Thống kê toàn hệ thống
                 const allTasks = getAllTasks();
                 const total = allTasks.length;
                 let done = 0, pending = 0, overdue = 0;
@@ -384,11 +373,9 @@
                 today.setHours(0, 0, 0, 0);
 
                 allTasks.forEach(row => {
-                    // Tìm cột tiến độ và hạn giao
                     const progress = Object.values(row).find(v => 
                         typeof v === 'string' && CONFIG.progressOptions.includes(v)
                     ) || "Chưa làm";
-                    
                     const deadlineStr = row["Hạn giao"] || row["Hạn"] || "";
                     
                     if (progress === "Đã hoàn thành" || progress === "Giám đốc duyệt") {
@@ -408,7 +395,6 @@
                 document.getElementById('stat-overdue').innerText = overdue;
                 document.getElementById('stat-done').innerText = done;
 
-                // Thống kê cho mục đang chọn
                 const currentData = getCurrentData();
                 const currentRows = currentData.rows || [];
                 const subTotal = currentRows.length;
@@ -468,7 +454,6 @@
             },
 
             updateRow: (rowId, colIndex, newValue) => {
-                // Tìm row trong dữ liệu hiện tại
                 const data = getCurrentData();
                 const row = data.rows.find(r => r._id === rowId);
                 if (row && data.headers[colIndex]) {
@@ -493,11 +478,9 @@
                         return;
                     }
 
-                    // Lấy header từ dòng đầu tiên
                     const headers = rows[0].map(h => (h || "").toString().trim());
-                    
-                    // Tạo mảng các đối tượng row
                     const newRows = [];
+
                     for (let i = 1; i < rows.length; i++) {
                         const rowData = rows[i];
                         if (!rowData || rowData.length === 0) continue;
@@ -510,7 +493,6 @@
                     }
 
                     if (newRows.length > 0) {
-                        // Lưu vào menu con hiện tại
                         if (!tasks[currentMainKey]) tasks[currentMainKey] = {};
                         tasks[currentMainKey][currentSubName] = {
                             headers: headers,
@@ -531,14 +513,12 @@
             }
         };
 
-        // ==================== GÁN RA GLOBAL ====================
         window.App = {
             selectMain: handlers.selectMain,
             selectSub: handlers.selectSub,
             updateRow: handlers.updateRow
         };
 
-        // ==================== KHỞI TẠO ====================
         function init() {
             render.mainMenu();
             handlers.selectMain("Sở");
