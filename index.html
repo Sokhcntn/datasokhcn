@@ -41,6 +41,10 @@
         .stat-card-sub {
             @apply flex flex-col items-center justify-center px-6 border-r border-blue-200 last:border-0;
         }
+
+        .active-main-menu {
+            @apply bg-blue-600 text-white shadow-lg shadow-blue-900/20;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 flex">
@@ -57,7 +61,7 @@
         </nav>
 
         <div class="p-4 border-t border-slate-800 bg-slate-950/50">
-            <label class="flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 p-3 rounded-xl transition text-[11px] font-bold justify-center uppercase shadow-lg shadow-blue-900/20">
+            <label class="flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 p-3 rounded-xl transition text-[11px] font-bold justify-center uppercase shadow-lg">
                 <i data-lucide="file-up" class="w-4 h-4"></i>
                 Nạp dữ liệu Excel
                 <input type="file" id="excelInput" class="hidden" accept=".xlsx, .xls">
@@ -68,25 +72,21 @@
     <!-- RIGHT SECTION -->
     <div class="flex-1 flex flex-col overflow-hidden">
         
-        <!-- DASHBOARD (2 DÒNG) -->
+        <!-- DASHBOARD -->
         <header class="dashboard-height flex flex-col shadow-sm z-30">
             <div class="h-1/2 bg-slate-800 text-white flex items-center px-10 gap-8">
                 <div class="flex-1">
-                    <p class="text-blue-400 font-bold text-[10px] uppercase tracking-widest mb-1">Tổng quan toàn bộ hệ thống</p>
+                    <p class="text-blue-400 font-bold text-[10px] uppercase tracking-widest mb-1">Thống kê file hiện tại</p>
                     <h2 id="dashboardTitle" class="text-2xl font-black leading-none uppercase tracking-tighter italic text-blue-100"></h2>
                 </div>
                 <div class="flex items-center h-full py-4">
                     <div class="stat-card-main">
                         <div id="stat-total" class="text-3xl font-black">0</div>
-                        <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Tổng nhiệm vụ</div>
+                        <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Tổng dòng nạp</div>
                     </div>
                     <div class="stat-card-main">
                         <div id="stat-pending" class="text-3xl font-black text-amber-400">0</div>
                         <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Đang thực hiện</div>
-                    </div>
-                    <div class="stat-card-main">
-                        <div id="stat-overdue" class="text-3xl font-black text-rose-500">0</div>
-                        <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Quá hạn nhóm</div>
                     </div>
                     <div class="stat-card-main border-0">
                         <div id="stat-done" class="text-3xl font-black text-emerald-400">0</div>
@@ -99,28 +99,24 @@
                 <div class="flex-1 flex flex-col">
                     <div class="flex items-center gap-2">
                         <i data-lucide="layers" class="w-4 h-4 opacity-70"></i>
-                        <p id="currentSubLabel" class="text-xl font-bold italic tracking-tight">Đang xem tất cả</p>
+                        <p id="currentSubLabel" class="text-xl font-bold italic tracking-tight">Vui lòng chọn mục</p>
                     </div>
-                    <p class="text-[10px] font-medium text-blue-200 uppercase opacity-80 mt-1">Trạng thái mục đang chọn</p>
+                    <p class="text-[10px] font-medium text-blue-200 uppercase opacity-80 mt-1">Nội dung chi tiết & Tổng hợp (Sum)</p>
                 </div>
                 <div class="flex items-center h-full py-4">
                     <div class="stat-card-sub">
                         <div id="stat-sub-total" class="text-3xl font-black">0</div>
-                        <div class="text-[9px] font-bold text-blue-100 uppercase tracking-tighter">Số lượng mục này</div>
-                    </div>
-                    <div class="stat-card-sub">
-                        <div id="stat-sub-pending" class="text-2xl font-black">0</div>
-                        <div class="text-[9px] font-bold text-blue-100 uppercase tracking-tighter">Đang xử lý</div>
+                        <div class="text-[9px] font-bold text-blue-100 uppercase tracking-tighter">Sum (Nhiệm vụ)</div>
                     </div>
                     <div class="stat-card-sub border-0">
                         <div id="stat-sub-done" class="text-2xl font-black text-blue-200">0</div>
-                        <div class="text-[9px] font-bold text-blue-100 uppercase tracking-tighter">Hoàn thành</div>
+                        <div class="text-[9px] font-bold text-blue-100 uppercase tracking-tighter">Đã xong</div>
                     </div>
                 </div>
             </div>
         </header>
 
-        <!-- SUBMENU SELECTOR (Thêm nút "TẤT CẢ") -->
+        <!-- SUBMENU SELECTOR -->
         <div class="submenu-height bg-white border-b border-slate-200 flex items-center px-10 overflow-x-auto custom-scroll gap-2" id="subMenu"></div>
 
         <!-- MAIN TABLE CONTENT -->
@@ -132,16 +128,16 @@
                             <tr>
                                 <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-14 text-center">STT</th>
                                 <th class="p-4 text-[10px] font-bold text-slate-400 uppercase">Nội dung nhiệm vụ</th>
-                                <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-40 text-center">Đơn vị chủ trì</th>
+                                <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-40 text-center">Đơn vị / Phân loại</th>
                                 <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-32 text-center">Hạn giao</th>
-                                <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-64 text-center">Tiến độ cập nhật</th>
+                                <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-60 text-center">Tiến độ</th>
                             </tr>
                         </thead>
                         <tbody id="taskBody" class="divide-y divide-slate-100"></tbody>
                     </table>
-                    <div id="noDataView" class="hidden flex flex-col items-center justify-center p-20 text-slate-300">
-                        <i data-lucide="search-x" class="w-12 h-12 mb-3 opacity-20"></i>
-                        <p class="font-bold">Không có dữ liệu hiển thị.</p>
+                    <div id="noDataView" class="hidden flex flex-col items-center justify-center p-20 text-slate-400">
+                        <i data-lucide="info" class="w-12 h-12 mb-3 opacity-20"></i>
+                        <p class="font-bold">Không tìm thấy dữ liệu phù hợp với bộ lọc trong file nạp.</p>
                     </div>
                 </div>
             </div>
@@ -158,26 +154,22 @@
             "UBND tỉnh": { 
                 label: "UBND Tỉnh", 
                 icon: "landmark", 
-                subs: ["Kịch bản tăng trưởng", "KH2390-NQ24HĐND", "KH658-QĐ2815", "Đề án 1330", "CTHĐ KT-XH 2026", "CTLV 2026"] 
+                subs: ["Kịch bản tăng trưởng", "KH2390", "KH658", "Đề án 1330", "CTHĐ KT-XH", "CTLV"] 
             },
-            "NQ57": { label: "Nghị quyết 57", icon: "file-text", subs: ["Kế hoạch hành động", "Phát triển hạ tầng", "Đào tạo nhân lực", "Phân bổ ngân sách"] },
+            "NQ57": { label: "Nghị quyết 57", icon: "file-text", subs: ["Hành động", "Hạ tầng", "Nhân lực", "Ngân sách"] },
             "Tỉnh ủy": { label: "Tỉnh ủy", icon: "building-2", subs: ["Nghị quyết 11", "CTHD33", "CTLV25"] },
             "Big Problems": { 
                 label: "Big Problems", 
                 icon: "zap", 
-                subs: ["Dự án UAV", "Kinh tế số", "Tín chỉ Carbon", "Halal", "Năng lượng", "Hệ sinh thái ĐMST", "Quản trị AI"] 
+                subs: ["UAV", "Kinh tế số", "Carbon", "Halal", "Năng lượng", "Hệ sinh thái", "AI"] 
             }
         };
 
-        const progressOptions = [
-            "Chưa làm", "CV đang xử lý", "Lãnh đạo phòng kiểm tra", 
-            "PGĐ đang kiểm tra", "Giám đốc duyệt", "Đã hoàn thành",
-            "Lấy ý kiến Sở ngành", "VP. UBND tỉnh", "VP Tỉnh ủy"
-        ];
+        const progressOptions = ["Chưa làm", "Đang xử lý", "Chờ duyệt", "Đã hoàn thành"];
 
         let masterData = []; 
         let currentMainKey = "";
-        let currentSubName = "TẤT CẢ"; // Mặc định xem hết
+        let currentSubName = "TẤT CẢ";
 
         function init() {
             renderMainMenu();
@@ -202,14 +194,14 @@
 
         function selectMain(key) {
             currentMainKey = key;
-            document.querySelectorAll('#mainMenu button').forEach(btn => btn.classList.remove('bg-blue-600', 'text-white'));
+            document.querySelectorAll('#mainMenu button').forEach(btn => btn.classList.remove('active-main-menu'));
             const activeBtn = document.getElementById(`menu-${key}`);
-            if (activeBtn) activeBtn.classList.add('bg-blue-600', 'text-white');
+            if (activeBtn) activeBtn.classList.add('active-main-menu');
             
             const cfg = menuConfig[key];
             document.getElementById('dashboardTitle').innerText = cfg.label;
             
-            // Xây dựng SubMenu, luôn có nút "TẤT CẢ" đầu tiên
+            // Xây dựng SubMenu
             const allSubs = ["TẤT CẢ", ...cfg.subs];
             const subHtml = allSubs.map(sub => `
                 <button onclick="selectSub('${sub}')" class="sub-btn whitespace-nowrap px-4 py-2 rounded-lg border border-slate-200 text-[11px] font-black uppercase transition-all bg-slate-50 hover:bg-white hover:shadow-sm">
@@ -218,34 +210,22 @@
             `).join('');
             document.getElementById('subMenu').innerHTML = subHtml;
             
-            // Nếu chưa có file Excel, tạo dữ liệu mẫu
             if (masterData.length === 0) {
-                generateMockData(cfg);
+                generateSampleData();
             }
             
             selectSub("TẤT CẢ");
         }
 
-        function generateMockData(cfg) {
-            const mock = [];
-            cfg.subs.forEach(sub => {
-                const num = 3;
-                for(let i=1; i<=num; i++) {
-                    mock.push({
-                        "id": Math.random().toString(36).substr(2, 9),
-                        "Nội dung": `[Mẫu] Nhiệm vụ ${i} của ${sub}`,
-                        "Đơn vị": sub,
-                        "Hạn": "30/03/2026",
-                        "Tiến độ": progressOptions[0]
-                    });
-                }
-            });
-            masterData = mock;
+        function generateSampleData() {
+            masterData = [
+                { id: "sample1", "Nội dung": "Vui lòng nạp file Excel để bắt đầu thống kê", "Đơn vị": "Hệ thống", "Hạn": "---", "Tiến độ": "Chưa làm" }
+            ];
         }
 
         function selectSub(sub) {
             currentSubName = sub;
-            document.getElementById('currentSubLabel').innerText = sub === "TẤT CẢ" ? "Toàn bộ danh sách" : sub;
+            document.getElementById('currentSubLabel').innerText = sub === "TẤT CẢ" ? `Tổng hợp: ${menuConfig[currentMainKey].label}` : sub;
             
             document.querySelectorAll('.sub-btn').forEach(btn => {
                 if(btn.innerText.trim() === sub.trim()) {
@@ -259,52 +239,59 @@
             renderDisplay();
         }
 
-        function getStatus(prog, deadline) {
-            if (prog === "Đã hoàn thành" || prog === "Giám đốc duyệt") return "DONE";
-            // Logic so sánh ngày đơn giản
-            return "PENDING";
-        }
-
         function renderDisplay() {
             const body = document.getElementById('taskBody');
             const emptyView = document.getElementById('noDataView');
-            
-            // Lọc dữ liệu: Nếu là "TẤT CẢ" thì lấy hết masterData
-            const filteredTasks = currentSubName === "TẤT CẢ" 
-                ? masterData 
-                : masterData.filter(t => {
-                    const d = (t["Đơn vị"] || t["Cơ quan"] || t["Chủ trì"] || "").toString().toLowerCase();
-                    return d.includes(currentSubName.toLowerCase());
-                });
+            const currentSubs = menuConfig[currentMainKey].subs;
 
+            let filteredTasks = [];
+
+            // CHUẨN HÓA LOGIC LỌC
+            if (currentSubName === "TẤT CẢ") {
+                // SUM: Lấy tất cả các dòng mà Content hoặc Unit chứa bất kỳ SubMenu nào của nhóm này
+                filteredTasks = masterData.filter(t => {
+                    const content = (t["Nội dung"] || "").toString().toLowerCase();
+                    const unit = (t["Đơn vị"] || "").toString().toLowerCase();
+                    return currentSubs.some(s => {
+                        const searchKey = s.toLowerCase().trim();
+                        return content.includes(searchKey) || unit.includes(searchKey);
+                    });
+                });
+            } else {
+                // CHI TIẾT: Lọc chính xác theo từ khóa SubMenu đang chọn
+                const searchKey = currentSubName.toLowerCase().trim();
+                filteredTasks = masterData.filter(t => {
+                    const content = (t["Nội dung"] || "").toString().toLowerCase();
+                    const unit = (t["Đơn vị"] || "").toString().toLowerCase();
+                    return content.includes(searchKey) || unit.includes(searchKey);
+                });
+            }
+
+            // HIỂN THỊ LÊN BẢNG
             if (filteredTasks.length === 0) {
                 body.innerHTML = "";
                 emptyView.classList.remove('hidden');
             } else {
                 emptyView.classList.add('hidden');
                 body.innerHTML = filteredTasks.map((task, index) => {
-                    const status = getStatus(task["Tiến độ"], task["Hạn"]);
+                    const isDone = task["Tiến độ"] === 'Đã hoàn thành';
                     return `
-                        <tr class="hover:bg-slate-50 transition">
+                        <tr class="hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
                             <td class="p-4 text-center font-bold text-slate-300 text-xs">${index + 1}</td>
-                            <td class="p-4 font-semibold text-slate-800 text-sm">
-                                ${task["Nội dung"] || "Không có tiêu đề"}
-                            </td>
+                            <td class="p-4 font-semibold text-slate-800 text-sm leading-relaxed">${task["Nội dung"]}</td>
                             <td class="p-4 text-center">
-                                <span class="text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded uppercase">
-                                    ${task["Đơn vị"] || "N/A"}
+                                <span class="text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded uppercase tracking-tighter">
+                                    ${task["Đơn vị"] || "Chưa phân loại"}
                                 </span>
                             </td>
-                            <td class="p-4 text-center text-xs font-mono font-bold text-slate-600">
-                                ${task["Hạn"] || "---"}
-                            </td>
+                            <td class="p-4 text-center text-xs font-mono font-bold text-slate-600">${task["Hạn"] || "---"}</td>
                             <td class="p-4">
-                                <div class="flex items-center gap-3">
-                                    <select onchange="updateRow('${task.id}', this.value)" class="flex-1 bg-white border border-slate-200 rounded p-1.5 text-[11px] font-bold shadow-sm">
+                                <div class="flex items-center gap-2">
+                                    <select onchange="updateRow('${task.id}', this.value)" class="flex-1 bg-white border border-slate-200 rounded p-1.5 text-[10px] font-bold shadow-sm focus:border-blue-500 outline-none">
                                         ${progressOptions.map(opt => `<option value="${opt}" ${task["Tiến độ"] === opt ? 'selected' : ''}>${opt}</option>`).join('')}
                                     </select>
-                                    <span class="status-badge ${status === 'DONE' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'} min-w-[80px] text-center shadow-sm">
-                                        ${status === 'DONE' ? 'Xong' : 'Đang làm'}
+                                    <span class="status-badge ${isDone ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'} min-w-[75px] text-center">
+                                        ${isDone ? 'Xong' : 'Đang xử lý'}
                                     </span>
                                 </div>
                             </td>
@@ -312,12 +299,14 @@
                     `;
                 }).join('');
             }
+
+            // CẬP NHẬT CÁC CON SỐ SUM VÀ STATS
             updateStats(filteredTasks);
             lucide.createIcons();
         }
 
         function updateRow(id, val) {
-            const task = masterData.find(t => t.id === id);
+            const task = masterData.find(t => t.id.toString() === id.toString());
             if(task) {
                 task["Tiến độ"] = val;
                 renderDisplay();
@@ -325,16 +314,17 @@
         }
 
         function updateStats(filtered) {
-            // Tổng hệ thống
+            // Stats tổng của toàn bộ file
             document.getElementById('stat-total').innerText = masterData.length;
-            document.getElementById('stat-done').innerText = masterData.filter(t => getStatus(t["Tiến độ"]) === "DONE").length;
+            document.getElementById('stat-done').innerText = masterData.filter(t => t["Tiến độ"] === "Đã hoàn thành").length;
+            document.getElementById('stat-pending').innerText = masterData.filter(t => t["Tiến độ"] !== "Đã hoàn thành").length;
             
-            // Theo mục đang chọn
+            // Stats SUM của mục đang chọn (nếu là TẤT CẢ thì là tổng nhóm)
             document.getElementById('stat-sub-total').innerText = filtered.length;
-            document.getElementById('stat-sub-done').innerText = filtered.filter(t => getStatus(t["Tiến độ"]) === "DONE").length;
-            document.getElementById('stat-sub-pending').innerText = filtered.filter(t => getStatus(t["Tiến độ"]) !== "DONE").length;
+            document.getElementById('stat-sub-done').innerText = filtered.filter(t => t["Tiến độ"] === "Đã hoàn thành").length;
         }
 
+        // XỬ LÝ FILE EXCEL
         document.getElementById('excelInput').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -345,22 +335,26 @@
                 const workbook = XLSX.read(data, { type: 'array' });
                 const raw = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 
-                // MAPPING CỘT THÔNG MINH
-                masterData = raw.map(row => {
+                // Refresh masterData
+                masterData = raw.map((row, idx) => {
                     const keys = Object.keys(row);
-                    const findKey = (terms) => keys.find(k => terms.some(t => k.toLowerCase().includes(t)));
+                    const findValue = (terms) => {
+                        const key = keys.find(k => terms.some(t => k.toLowerCase().replace(/\s/g, '').includes(t)));
+                        return key ? row[key] : "";
+                    };
 
                     return {
-                        id: Math.random().toString(36).substr(2, 9),
-                        "Nội dung": row[findKey(["nội dung", "nhiệm vụ", "công việc", "tên"])] || "N/A",
-                        "Đơn vị": row[findKey(["đơn vị", "cơ quan", "chủ trì", "phòng"])] || "N/A",
-                        "Hạn": row[findKey(["hạn", "thời gian", "ngày"])] || "---",
-                        "Tiến độ": row[findKey(["tiến độ", "trạng thái"])] || progressOptions[0]
+                        id: `task-${Date.now()}-${idx}`,
+                        "Nội dung": findValue(["nộidung", "nhiệmvụ", "côngviệc", "tên"]),
+                        "Đơn vị": findValue(["đơnvị", "cơquan", "chủtrì", "phòng", "mục"]),
+                        "Hạn": findValue(["hạn", "thờigian", "ngày"]),
+                        "Tiến độ": findValue(["tiếndộ", "trạngthái"]) || progressOptions[0]
                     };
-                });
-                
-                // Sau khi nạp, tự động chuyển về chế độ TẤT CẢ để xem hết kết quả
-                selectSub("TẤT CẢ");
+                }).filter(t => t["Nội dung"] && t["Nội dung"].toString().trim() !== "");
+
+                // Sau khi nạp thành công, ưu tiên hiển thị SUM của nhóm "Sở"
+                currentMainKey = "Sở";
+                selectMain("Sở");
             };
             reader.readAsArrayBuffer(file);
         });
