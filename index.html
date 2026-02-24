@@ -1,304 +1,589 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IOC Task Dashboard</title>
-
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://unpkg.com/lucide@latest"></script>
-
-<style>
-body{font-family:Inter, sans-serif;overflow:hidden}
-.dashboard{height:28vh}
-.sidebar{width:16vw}
-.submenu{height:8vh}
-.content{height:64vh}
-.status{font-size:10px;font-weight:800;padding:2px 8px;border-radius:4px}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Quản trị Nhiệm vụ Chiến lược</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; overflow: hidden; }
+        .dashboard-height { height: 28vh; }
+        .sidebar-width { width: 16vw; }
+        .submenu-height { height: 8vh; }
+        .content-height { height: 64vh; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .status-badge {
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .stat-card-main {
+            @apply flex flex-col items-center justify-center px-6 border-r border-slate-700 last:border-0;
+        }
+        .stat-card-sub {
+            @apply flex flex-col items-center justify-center px-6 border-r border-blue-200 last:border-0;
+        }
+    </style>
 </head>
-
-<body class="bg-slate-50 flex">
+<body class="bg-slate-50 text-slate-900 flex">
 
 <!-- SIDEBAR -->
-<aside class="sidebar h-screen bg-slate-900 text-white flex flex-col">
-<div class="p-5 border-b border-slate-800 text-center font-black text-blue-400">
-QUẢN LÝ NHIỆM VỤ
-</div>
-
-<ul id="menu" class="flex-1 p-3 space-y-1"></ul>
-
-<label class="p-4 bg-slate-950 cursor-pointer text-center text-xs font-bold">
-UPLOAD EXCEL
-<input type="file" id="file" hidden>
-</label>
+<aside class="sidebar-width h-screen bg-slate-900 text-white flex flex-col shadow-2xl z-50">
+    <div class="p-6 border-b border-slate-800">
+        <h1 class="text-xl font-black tracking-tighter text-blue-400 text-center uppercase">Quản lý nhiệm vụ</h1>
+    </div>
+    <nav class="flex-1 mt-6">
+        <div class="px-6 mb-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest italic text-center">Nhóm nhiệm vụ chính</div>
+        <ul id="mainMenu" class="space-y-1 px-3"></ul>
+    </nav>
+    <div class="p-4 border-t border-slate-800 bg-slate-950/50">
+        <label class="flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 p-3 rounded-xl transition text-[11px] font-bold justify-center uppercase shadow-lg shadow-blue-900/20">
+            <i data-lucide="file-up" class="w-4 h-4"></i>
+            Nạp dữ liệu Excel
+            <input type="file" id="excelInput" class="hidden" accept=".xlsx, .xls">
+        </label>
+    </div>
 </aside>
 
-<!-- RIGHT -->
-<div class="flex-1 flex flex-col">
+<!-- RIGHT SECTION -->
+<div class="flex-1 flex flex-col overflow-hidden">
 
-<!-- DASHBOARD -->
-<header class="dashboard flex flex-col">
+    <!-- DASHBOARD (2 DÒNG) -->
+    <header class="dashboard-height flex flex-col shadow-sm z-30">
+        <!-- Dòng trên: thống kê toàn hệ thống (theo nhóm chính) -->
+        <div class="h-1/2 bg-slate-800 text-white flex items-center px-10 gap-8">
+            <div class="flex-1">
+                <p class="text-blue-400 font-bold text-[10px] uppercase tracking-widest mb-1">Tổng quan nhóm chính</p>
+                <h2 id="dashboardTitle" class="text-2xl font-black leading-none uppercase tracking-tighter italic text-blue-100"></h2>
+            </div>
+            <div class="flex items-center h-full py-4">
+                <div class="stat-card-main">
+                    <div id="stat-total" class="text-3xl font-black">0</div>
+                    <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Tổng nhiệm vụ</div>
+                </div>
+                <div class="stat-card-main">
+                    <div id="stat-pending" class="text-3xl font-black text-amber-400">0</div>
+                    <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Đang thực hiện</div>
+                </div>
+                <div class="stat-card-main">
+                    <div id="stat-overdue" class="text-3xl font-black text-rose-500">0</div>
+                    <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Quá hạn</div>
+                </div>
+                <div class="stat-card-main border-0">
+                    <div id="stat-done" class="text-3xl font-black text-emerald-400">0</div>
+                    <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Đã hoàn thành</div>
+                </div>
+            </div>
+        </div>
+        <!-- Dòng dưới: thống kê cho submenu đang chọn -->
+        <div class="h-1/2 bg-blue-600 text-white flex items-center px-10 gap-8 shadow-inner">
+            <div class="flex-1 flex flex-col">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="layers" class="w-4 h-4 opacity-70"></i>
+                    <p id="currentSubLabel" class="text-xl font-bold italic tracking-tight">Đang xem tất cả</p>
+                </div>
+                <p class="text-[10px] font-medium text-blue-200 uppercase opacity-80 mt-1">Trạng thái mục đang chọn</p>
+            </div>
+            <div class="flex items-center h-full py-4">
+                <div class="stat-card-sub">
+                    <div id="stat-sub-total" class="text-3xl font-black">0</div>
+                    <div class="text-[9px] font-bold text-blue-100 uppercase tracking-tighter">Số lượng mục này</div>
+                </div>
+                <div class="stat-card-sub">
+                    <div id="stat-sub-pending" class="text-2xl font-black">0</div>
+                    <div class="text-[9px] font-bold text-blue-100 uppercase tracking-tighter">Đang xử lý</div>
+                </div>
+                <div class="stat-card-sub border-0">
+                    <div id="stat-sub-done" class="text-2xl font-black text-blue-200">0</div>
+                    <div class="text-[9px] font-bold text-blue-100 uppercase tracking-tighter">Hoàn thành</div>
+                </div>
+            </div>
+        </div>
+    </header>
 
-<div class="flex-1 bg-slate-800 text-white flex items-center px-8 gap-8">
+    <!-- SUBMENU SELECTOR (luôn có nút "TẤT CẢ") -->
+    <div class="submenu-height bg-white border-b border-slate-200 flex items-center px-10 overflow-x-auto custom-scroll gap-2" id="subMenu"></div>
 
-<div class="flex-1">
-<p class="text-[10px] text-blue-300 uppercase">Tổng quan</p>
-<h2 id="title" class="text-2xl font-black"></h2>
-</div>
-
-<div class="flex gap-6">
-
-<div>
-<div id="total" class="text-3xl font-black">0</div>
-<div class="text-[10px] text-slate-400">Tổng</div>
-</div>
-
-<div>
-<div id="processing" class="text-3xl font-black text-yellow-400">0</div>
-<div class="text-[10px] text-slate-400">Đang xử lý</div>
-</div>
-
-<div>
-<div id="overdue" class="text-3xl font-black text-red-500">0</div>
-<div class="text-[10px] text-slate-400">Quá hạn</div>
-</div>
-
-<div>
-<div id="done" class="text-3xl font-black text-green-400">0</div>
-<div class="text-[10px] text-slate-400">Hoàn thành</div>
-</div>
-
-</div>
-</div>
-
-<div class="flex-1 bg-blue-600 flex items-center px-8 text-white">
-<div id="subLabel" class="text-xl font-bold">Tất cả</div>
-</div>
-
-</header>
-
-<!-- SUBMENU -->
-<div id="sub" class="submenu bg-white border-b flex items-center px-8 gap-2 overflow-x-auto"></div>
-
-<!-- SEARCH -->
-<div class="bg-white px-8 py-2 border-b">
-<input id="search" placeholder="Tìm nhiệm vụ..." class="border rounded px-3 py-1 text-sm w-72">
-</div>
-
-<!-- TABLE -->
-<main class="content p-4">
-<div class="bg-white h-full shadow rounded overflow-hidden flex flex-col">
-
-<div class="flex-1 overflow-auto">
-<table class="w-full text-left">
-
-<thead class="bg-slate-100 text-xs">
-<tr>
-<th class="p-3 w-14 text-center">STT</th>
-<th class="p-3">Nhiệm vụ</th>
-<th class="p-3 w-40 text-center">Đơn vị</th>
-<th class="p-3 w-32 text-center cursor-pointer" onclick="sortByDate()">Hạn ↓</th>
-<th class="p-3 w-64 text-center">Tiến độ</th>
-</tr>
-</thead>
-
-<tbody id="body"></tbody>
-</table>
-</div>
-
-<div id="empty" class="hidden text-center p-20 text-slate-300">
-Không có dữ liệu
-</div>
-
-</div>
-</main>
+    <!-- MAIN TABLE CONTENT -->
+    <main class="content-height p-4 overflow-hidden bg-slate-100/50">
+        <div class="bg-white rounded-xl shadow-lg border border-slate-200 h-full flex flex-col overflow-hidden">
+            <div class="overflow-auto custom-scroll flex-1">
+                <table class="w-full border-collapse text-left relative">
+                    <thead class="sticky top-0 bg-slate-50 z-20 shadow-sm border-b border-slate-200">
+                        <tr>
+                            <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-14 text-center">STT</th>
+                            <th class="p-4 text-[10px] font-bold text-slate-400 uppercase">Nội dung nhiệm vụ</th>
+                            <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-40 text-center">Cơ quan chủ trì</th>
+                            <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-40 text-center">Cơ quan phối hợp</th>
+                            <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-32 text-center">Hạn giao</th>
+                            <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-64 text-center">Tiến độ cập nhật</th>
+                        </tr>
+                    </thead>
+                    <tbody id="taskBody" class="divide-y divide-slate-100"></tbody>
+                </table>
+                <div id="noDataView" class="hidden flex flex-col items-center justify-center p-20 text-slate-300">
+                    <i data-lucide="search-x" class="w-12 h-12 mb-3 opacity-20"></i>
+                    <p class="font-bold">Không có dữ liệu hiển thị.</p>
+                </div>
+            </div>
+        </div>
+    </main>
 </div>
 
 <script>
-const menus={
-"Sở":["Văn phòng","P.CĐS","P.KH","P.TĐC","P.CN&ĐMST"],
-"UBND":["Kịch bản","Đề án","CTLV"],
-"NQ57":["Hạ tầng","Nhân lực","Ngân sách"],
-"Tỉnh ủy":["NQ11","CTHD33","CTLV25"],
-"Big":["AI","Carbon","Halal"]
-}
+    (function() {
+        // ==================== CẤU HÌNH & HẰNG SỐ ====================
+        const CONFIG = {
+            menu: {
+                "Sở": {
+                    label: "Sở KH&CN",
+                    icon: "flask-conical",
+                    subs: ["Văn phòng", "P.CĐS", "P.KH", "P.TĐC", "P.CN&ĐMST", "P.TC-KH", "TT. CĐS", "TT.KH&CN", "ĐMST"]
+                },
+                "UBND tỉnh": {
+                    label: "UBND Tỉnh",
+                    icon: "landmark",
+                    subs: ["Kịch bản tăng trưởng", "KH2390-NQ24HĐND", "KH658-QĐ2815", "Đề án 1330", "CTHĐ KT-XH 2026", "CTLV 2026"]
+                },
+                "NQ57": { label: "Nghị quyết 57", icon: "file-text", subs: ["Kế hoạch hành động", "Phát triển hạ tầng", "Đào tạo nhân lực", "Phân bổ ngân sách"] },
+                "Tỉnh ủy": { label: "Tỉnh ủy", icon: "building-2", subs: ["Nghị quyết 11", "CTHD33", "CTLV25"] },
+                "Big Problems": {
+                    label: "Big Problems",
+                    icon: "zap",
+                    subs: ["Dự án UAV", "Kinh tế số", "Tín chỉ Carbon", "Halal", "Năng lượng", "Hệ sinh thái ĐMST", "Quản trị AI"]
+                }
+            },
+            progressOptions: [
+                "Chưa làm", "CV đang xử lý", "Lãnh đạo phòng kiểm tra",
+                "PGĐ đang kiểm tra", "Giám đốc duyệt", "Đã hoàn thành",
+                "Lấy ý kiến Sở ngành", "VP. UBND tỉnh", "VP Tỉnh ủy"
+            ]
+        };
 
-const progress=[
-"Chưa làm",
-"CV đang xử lý",
-"Lãnh đạo phòng kiểm tra",
-"PGĐ đang kiểm tra",
-"Giám đốc duyệt",
-"Đã hoàn thành",
-"Lấy ý kiến",
-"VP UBND",
-"VP Tỉnh ủy"
-]
+        // ==================== STATE ====================
+        let state = {
+            tasks: [],              // mảng tất cả nhiệm vụ, mỗi task có các trường: id, mainKey, submenu, noiDung, donVi, phoiHop, han, tienDo
+            currentMainKey: "",      // key của menu chính đang chọn
+            currentSubName: "TẤT CẢ" // tên submenu đang chọn
+        };
 
-let data=[]
-let main=""
-let sub="TẤT CẢ"
-let uploaded=false
+        // ==================== HÀM TIỆN ÍCH ====================
+        const utils = {
+            // Tạo ID duy nhất
+            generateId: () => {
+                if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                    return crypto.randomUUID();
+                }
+                return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+            },
 
-function clean(t){
-return String(t||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-}
+            // Chuẩn hóa chuỗi (bỏ dấu, lowercase, trim) - dùng cho tìm kiếm nếu cần
+            normalizeString: (str) => {
+                if (!str) return '';
+                return str.normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .toLowerCase()
+                    .trim()
+                    .replace(/\s+/g, ' ');
+            },
 
-function parseDate(v){
-if(!v)return null
-if(typeof v==="number"){
-let d=new Date(1899,11,30)
-return new Date(d.getTime()+v*86400000)
-}
-if(v.includes("/")){
-let[a,b,c]=v.split("/")
-return new Date(`${c}-${b}-${a}`)
-}
-return new Date(v)
-}
+            // Chuyển chuỗi ngày dd/mm/yyyy hoặc yyyy-mm-dd thành Date (trả về null nếu lỗi)
+            parseDate: (dateStr) => {
+                if (!dateStr) return null;
+                let parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    let d = parseInt(parts[0], 10);
+                    let m = parseInt(parts[1], 10) - 1;
+                    let y = parseInt(parts[2], 10);
+                    if (!isNaN(d) && !isNaN(m) && !isNaN(y)) return new Date(y, m, d);
+                }
+                parts = dateStr.split('-');
+                if (parts.length === 3) {
+                    let y = parseInt(parts[0], 10);
+                    let m = parseInt(parts[1], 10) - 1;
+                    let d = parseInt(parts[2], 10);
+                    if (!isNaN(d) && !isNaN(m) && !isNaN(y)) return new Date(y, m, d);
+                }
+                return null;
+            },
 
-function status(row){
-if(row["Tiến độ"]==="Đã hoàn thành")return"done"
-let d=parseDate(row["Hạn"])
-if(d && d<new Date())return"overdue"
-return"processing"
-}
+            // Xác định trạng thái: DONE, OVERDUE, PENDING
+            getStatus: (progress, deadlineStr) => {
+                if (progress === "Đã hoàn thành" || progress === "Giám đốc duyệt") {
+                    return "DONE";
+                }
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const deadline = utils.parseDate(deadlineStr);
+                if (deadline && deadline < today) {
+                    return "OVERDUE";
+                }
+                return "PENDING";
+            },
 
-function renderMenu(){
-menu.innerHTML=Object.keys(menus).map(k=>
-`<button onclick="selectMain('${k}')" class="block w-full p-3 text-left hover:bg-blue-600 rounded">${k}</button>`
-).join("")
-}
+            // Format ngày thành dd/mm/yyyy (dùng cho dữ liệu mẫu)
+            formatDate: (date) => {
+                const d = date.getDate().toString().padStart(2, '0');
+                const m = (date.getMonth() + 1).toString().padStart(2, '0');
+                const y = date.getFullYear();
+                return `${d}/${m}/${y}`;
+            }
+        };
 
-function selectMain(k){
-main=k
-title.innerText=k
-renderSub()
-if(!uploaded && !data.length)mock()
-selectSub("TẤT CẢ")
-}
+        // ==================== HÀM RENDER ====================
+        const render = {
+            // Vẽ menu chính
+            mainMenu: () => {
+                const container = document.getElementById('mainMenu');
+                const html = Object.keys(CONFIG.menu).map(key => {
+                    const cfg = CONFIG.menu[key];
+                    return `
+                    <li>
+                        <button onclick="App.selectMain('${key}')" id="menu-${key}" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold text-xs group">
+                            <i data-lucide="${cfg.icon}" class="w-4 h-4 opacity-40 group-hover:opacity-100"></i>
+                            <span class="flex-1 text-left uppercase tracking-tight">${cfg.label}</span>
+                        </button>
+                    </li>
+                    `;
+                }).join('');
+                container.innerHTML = html;
+                lucide.createIcons();
+            },
 
-function renderSub(){
-sub.innerHTML=["TẤT CẢ",...menus[main]]
-.map(s=>`<button onclick="selectSub('${s}')" class="px-4 py-2 border rounded text-xs">${s}</button>`).join("")
-}
+            // Vẽ thanh submenu dựa trên menu chính hiện tại
+            subMenu: () => {
+                const cfg = CONFIG.menu[state.currentMainKey];
+                if (!cfg) return;
+                const allSubs = ["TẤT CẢ", ...cfg.subs];
+                const container = document.getElementById('subMenu');
+                const html = allSubs.map(sub => `
+                    <button onclick="App.selectSub('${sub}')" class="sub-btn whitespace-nowrap px-4 py-2 rounded-lg border border-slate-200 text-[11px] font-black uppercase transition-all bg-slate-50 hover:bg-white hover:shadow-sm">
+                        ${sub}
+                    </button>
+                `).join('');
+                container.innerHTML = html;
 
-function selectSub(s){
-sub=s
-subLabel.innerText=s
-render()
-}
+                // Đánh dấu active cho sub hiện tại
+                document.querySelectorAll('.sub-btn').forEach(btn => {
+                    if (btn.innerText.trim() === state.currentSubName) {
+                        btn.classList.add('bg-blue-700', 'text-white', 'border-blue-700');
+                        btn.classList.remove('bg-slate-50');
+                    } else {
+                        btn.classList.remove('bg-blue-700', 'text-white', 'border-blue-700');
+                        btn.classList.add('bg-slate-50');
+                    }
+                });
+            },
 
-function mock(){
-data=[]
-menus[main].forEach(m=>{
-for(let i=1;i<=3;i++){
-data.push({
-id:crypto.randomUUID(),
-"Nội dung":`Task ${i} ${m}`,
-"Đơn vị":m,
-"Hạn":"30/03/2026",
-"Tiến độ":progress[0]
-})
-}})
-}
+            // Vẽ bảng nhiệm vụ dựa trên danh sách đã lọc
+            taskTable: (filteredTasks) => {
+                const tbody = document.getElementById('taskBody');
+                const emptyView = document.getElementById('noDataView');
+                const fragment = document.createDocumentFragment();
 
-function render(){
+                if (filteredTasks.length === 0) {
+                    tbody.innerHTML = '';
+                    emptyView.classList.remove('hidden');
+                    return;
+                }
 
-let keyword=search.value.toLowerCase()
+                emptyView.classList.add('hidden');
 
-let list=data.filter(t=>{
-let ok=sub==="TẤT CẢ"||t["Đơn vị"]===sub
-let match=t["Nội dung"].toLowerCase().includes(keyword)
-return ok && match
-})
+                filteredTasks.forEach((task, index) => {
+                    const status = utils.getStatus(task.tienDo, task.han);
+                    let badgeClass = "bg-blue-100 text-blue-700"; // pending
+                    let badgeText = "Đang làm";
+                    if (status === "DONE") {
+                        badgeClass = "bg-emerald-100 text-emerald-700";
+                        badgeText = "Xong";
+                    } else if (status === "OVERDUE") {
+                        badgeClass = "bg-rose-100 text-rose-700";
+                        badgeText = "Quá hạn";
+                    }
 
-if(!list.length){
-body.innerHTML=""
-empty.classList.remove("hidden")
-return
-}
-empty.classList.add("hidden")
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-slate-50 transition';
+                    row.innerHTML = `
+                        <td class="p-4 text-center font-bold text-slate-300 text-xs">${index + 1}</td>
+                        <td class="p-4 font-semibold text-slate-800 text-sm">${task.noiDung || "Không có tiêu đề"}</td>
+                        <td class="p-4 text-center">
+                            <span class="text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded uppercase">${task.donVi || "N/A"}</span>
+                        </td>
+                        <td class="p-4 text-center text-xs text-slate-600">${task.phoiHop || "—"}</td>
+                        <td class="p-4 text-center text-xs font-mono font-bold text-slate-600">${task.han || "---"}</td>
+                        <td class="p-4">
+                            <div class="flex items-center gap-3">
+                                <select onchange="App.updateRow('${task.id}', this.value)" class="flex-1 bg-white border border-slate-200 rounded p-1.5 text-[11px] font-bold shadow-sm">
+                                    ${CONFIG.progressOptions.map(opt => `<option value="${opt}" ${task.tienDo === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                                </select>
+                                <span class="status-badge ${badgeClass} min-w-[80px] text-center shadow-sm">${badgeText}</span>
+                            </div>
+                        </td>
+                    `;
+                    fragment.appendChild(row);
+                });
 
-body.innerHTML=list.map((t,i)=>{
-let s=status(t)
+                tbody.innerHTML = '';
+                tbody.appendChild(fragment);
+                lucide.createIcons();
+            },
 
-return`
-<tr class="border-t hover:bg-slate-50">
-<td class="p-3 text-center">${i+1}</td>
-<td class="p-3">${clean(t["Nội dung"])}</td>
-<td class="p-3 text-center">${clean(t["Đơn vị"])}</td>
-<td class="p-3 text-center">${t["Hạn"]}</td>
-<td class="p-3">
-<select onchange="update('${t.id}',this.value)" class="border p-1 text-xs">
-${progress.map(p=>`<option ${p==t["Tiến độ"]?"selected":""}>${p}</option>`).join("")}
-</select>
-<span class="status ml-2 ${s=="done"?"bg-green-100 text-green-700":s=="overdue"?"bg-red-100 text-red-700":"bg-blue-100 text-blue-700"}">
-${s=="done"?"Hoàn thành":s=="overdue"?"Quá hạn":"Đang xử lý"}
-</span>
-</td>
-</tr>`
-}).join("")
+            // Cập nhật tất cả số liệu thống kê
+            stats: (filteredTasks) => {
+                // Lọc tất cả tasks thuộc mainKey hiện tại
+                const mainTasks = state.tasks.filter(t => t.mainKey === state.currentMainKey);
 
-stats()
-}
+                // Thống kê toàn nhóm chính
+                const total = mainTasks.length;
+                let done = 0, pending = 0, overdue = 0;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
 
-function stats(){
-total.innerText=data.length
-done.innerText=data.filter(t=>status(t)=="done").length
-overdue.innerText=data.filter(t=>status(t)=="overdue").length
-processing.innerText=data.filter(t=>status(t)=="processing").length
-}
+                mainTasks.forEach(t => {
+                    if (t.tienDo === "Đã hoàn thành" || t.tienDo === "Giám đốc duyệt") {
+                        done++;
+                    } else {
+                        const deadline = utils.parseDate(t.han);
+                        if (deadline && deadline < today) {
+                            overdue++;
+                        } else {
+                            pending++;
+                        }
+                    }
+                });
 
-function update(id,val){
-let t=data.find(x=>x.id==id)
-if(t){t["Tiến độ"]=val;render()}
-}
+                document.getElementById('stat-total').innerText = total;
+                document.getElementById('stat-pending').innerText = pending;
+                document.getElementById('stat-overdue').innerText = overdue;
+                document.getElementById('stat-done').innerText = done;
 
-function sortByDate(){
-data.sort((a,b)=>{
-let da=parseDate(a["Hạn"])||0
-let db=parseDate(b["Hạn"])||0
-return da-db
-})
-render()
-}
+                // Thống kê cho submenu đang chọn (filteredTasks)
+                const subTotal = filteredTasks.length;
+                let subDone = 0, subPending = 0;
+                filteredTasks.forEach(t => {
+                    if (t.tienDo === "Đã hoàn thành" || t.tienDo === "Giám đốc duyệt") {
+                        subDone++;
+                    } else {
+                        subPending++;
+                    }
+                });
 
-search.oninput=render
+                document.getElementById('stat-sub-total').innerText = subTotal;
+                document.getElementById('stat-sub-pending').innerText = subPending;
+                document.getElementById('stat-sub-done').innerText = subDone;
+            },
 
-file.onchange=e=>{
-let f=e.target.files[0]
-if(!f)return
-uploaded=true
+            // Cập nhật toàn bộ giao diện sau khi state thay đổi
+            all: () => {
+                // Lọc tasks theo mainKey và submenu
+                const filtered = state.tasks.filter(t => t.mainKey === state.currentMainKey && 
+                    (state.currentSubName === "TẤT CẢ" || t.submenu === state.currentSubName));
 
-let r=new FileReader()
-r.onload=x=>{
-let wb=XLSX.read(x.target.result,{type:"array"})
-let raw=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]])
+                render.taskTable(filtered);
+                render.stats(filtered);
+            }
+        };
 
-data=raw.map(r=>{
-let k=Object.keys(r)
-let f=t=>k.find(x=>t.some(a=>x.toLowerCase().includes(a)))
+        // ==================== XỬ LÝ SỰ KIỆN ====================
+        const handlers = {
+            // Chọn menu chính
+            selectMain: (key) => {
+                state.currentMainKey = key;
+                state.currentSubName = "TẤT CẢ"; // reset về "TẤT CẢ"
 
-return{
-id:crypto.randomUUID(),
-"Nội dung":r[f(["nội dung","task","công việc","tên"])]||"",
-"Đơn vị":r[f(["đơn vị","phòng","cơ quan"])]||"",
-"Hạn":r[f(["hạn","ngày","date"])]||"",
-"Tiến độ":r[f(["tiến độ","trạng thái"])]||progress[0]
-}
-})
+                // Cập nhật active trên menu chính
+                document.querySelectorAll('#mainMenu button').forEach(btn => btn.classList.remove('bg-blue-600', 'text-white'));
+                const activeBtn = document.getElementById(`menu-${key}`);
+                if (activeBtn) activeBtn.classList.add('bg-blue-600', 'text-white');
 
-render()
-}
-r.readAsArrayBuffer(f)
-}
+                // Cập nhật tiêu đề dashboard
+                document.getElementById('dashboardTitle').innerText = CONFIG.menu[key].label;
 
-renderMenu()
-selectMain("Sở")
+                // Vẽ lại submenu
+                render.subMenu();
+
+                // Nếu chưa có dữ liệu cho nhóm này, tạo dữ liệu mẫu
+                if (!state.tasks.some(t => t.mainKey === key)) {
+                    generateMockData(key);
+                }
+
+                // Cập nhật toàn bộ giao diện
+                render.all();
+            },
+
+            // Chọn submenu
+            selectSub: (sub) => {
+                state.currentSubName = sub;
+                document.getElementById('currentSubLabel').innerText = sub === "TẤT CẢ" ? "Toàn bộ danh sách" : sub;
+
+                // Cập nhật active cho submenu
+                document.querySelectorAll('.sub-btn').forEach(btn => {
+                    if (btn.innerText.trim() === sub) {
+                        btn.classList.add('bg-blue-700', 'text-white', 'border-blue-700');
+                        btn.classList.remove('bg-slate-50');
+                    } else {
+                        btn.classList.remove('bg-blue-700', 'text-white', 'border-blue-700');
+                        btn.classList.add('bg-slate-50');
+                    }
+                });
+
+                render.all();
+            },
+
+            // Cập nhật tiến độ của một nhiệm vụ
+            updateRow: (id, newVal) => {
+                const task = state.tasks.find(t => t.id === id);
+                if (task) {
+                    task.tienDo = newVal;
+                    render.all();
+                }
+            },
+
+            // Xử lý upload file Excel
+            handleExcelUpload: (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                // Chỉ cho phép upload khi đang chọn một submenu cụ thể (không phải "TẤT CẢ")
+                if (state.currentSubName === "TẤT CẢ") {
+                    alert("Vui lòng chọn một submenu cụ thể để upload dữ liệu.");
+                    event.target.value = '';
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+                    if (rows.length < 2) {
+                        alert("File Excel không có dữ liệu (cần ít nhất 2 dòng).");
+                        return;
+                    }
+
+                    const headers = rows[0].map(h => (h || "").toString().toLowerCase().trim());
+
+                    // Tìm chỉ số cột dựa trên từ khóa (ưu tiên thứ tự)
+                    const findColIndex = (keywords) => {
+                        for (let kw of keywords) {
+                            const idx = headers.findIndex(h => h.includes(kw));
+                            if (idx !== -1) return idx;
+                        }
+                        return -1;
+                    };
+
+                    // Ánh xạ cột theo cấu trúc file mẫu
+                    const idxNoiDung = findColIndex(["nội dung nhiệm vụ", "nội dung", "nhiệm vụ"]);
+                    const idxDonVi = findColIndex(["cơ quan chủ trì", "chủ trì", "đơn vị chủ trì"]);
+                    const idxPhoiHop = findColIndex(["cơ quan phối hợp", "phối hợp"]);
+                    const idxHan = findColIndex(["hạn giao", "hạn", "thời gian"]);
+                    const idxTienDo = findColIndex(["tiến độ", "trạng thái"]);
+
+                    // Thông báo nếu thiếu cột quan trọng
+                    if (idxNoiDung === -1) console.warn("Không tìm thấy cột Nội dung, dùng giá trị mặc định.");
+                    if (idxDonVi === -1) console.warn("Không tìm thấy cột Cơ quan chủ trì, dùng giá trị mặc định.");
+                    if (idxHan === -1) console.warn("Không tìm thấy cột Hạn giao, dùng giá trị mặc định.");
+
+                    const newTasks = [];
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (!row || row.length === 0) continue;
+                        const task = {
+                            id: utils.generateId(),
+                            mainKey: state.currentMainKey,
+                            submenu: state.currentSubName,
+                            noiDung: (idxNoiDung !== -1 ? row[idxNoiDung] : "") || "N/A",
+                            donVi: (idxDonVi !== -1 ? row[idxDonVi] : "") || "N/A",
+                            phoiHop: (idxPhoiHop !== -1 ? row[idxPhoiHop] : "") || "",
+                            han: (idxHan !== -1 ? row[idxHan] : "") || "---",
+                            tienDo: (idxTienDo !== -1 ? row[idxTienDo] : "") || CONFIG.progressOptions[0]
+                        };
+                        // Đảm bảo tiến độ hợp lệ
+                        if (!CONFIG.progressOptions.includes(task.tienDo)) {
+                            task.tienDo = CONFIG.progressOptions[0];
+                        }
+                        newTasks.push(task);
+                    }
+
+                    if (newTasks.length > 0) {
+                        // Xóa các task cũ của submenu này (nếu muốn thay thế) hoặc thêm vào?
+                        // Ở đây ta sẽ thêm vào, giữ lại dữ liệu cũ. Có thể thay đổi tùy ý.
+                        // Để tránh trùng lặp, ta có thể xóa các task của submenu hiện tại trước khi thêm mới.
+                        // Tạm thời sẽ xóa cũ và thêm mới (hành động upload thay thế).
+                        state.tasks = state.tasks.filter(t => !(t.mainKey === state.currentMainKey && t.submenu === state.currentSubName));
+                        state.tasks.push(...newTasks);
+
+                        alert(`Đã nạp ${newTasks.length} dòng dữ liệu vào submenu "${state.currentSubName}".`);
+                        console.log("5 dòng đầu tiên:", newTasks.slice(0, 5));
+                    } else {
+                        alert("Không có dữ liệu hợp lệ để nạp.");
+                    }
+
+                    // Render lại
+                    render.all();
+                };
+                reader.readAsArrayBuffer(file);
+                event.target.value = ''; // reset input
+            }
+        };
+
+        // ==================== TẠO DỮ LIỆU MẪU ====================
+        function generateMockData(mainKey) {
+            const cfg = CONFIG.menu[mainKey];
+            if (!cfg) return;
+            const mock = [];
+            const today = new Date();
+            const pastDate = new Date(today);
+            pastDate.setDate(today.getDate() - 10);
+            const futureDate = new Date(today);
+            futureDate.setDate(today.getDate() + 30);
+
+            cfg.subs.forEach((sub, idx) => {
+                for (let i = 1; i <= 2; i++) {
+                    let deadline = (idx % 2 === 0 && i === 1) ? pastDate : futureDate;
+                    mock.push({
+                        id: utils.generateId(),
+                        mainKey: mainKey,
+                        submenu: sub,
+                        noiDung: `[Mẫu] Nhiệm vụ ${i} của ${sub}`,
+                        donVi: `Đơn vị ${sub}`,
+                        phoiHop: `Phối hợp ${i}`,
+                        han: utils.formatDate(deadline),
+                        tienDo: (idx === 2 && i === 2) ? "Đã hoàn thành" : CONFIG.progressOptions[0]
+                    });
+                }
+            });
+            // Thêm vào tasks, giữ lại dữ liệu cũ của các nhóm khác
+            state.tasks = state.tasks.filter(t => t.mainKey !== mainKey);
+            state.tasks.push(...mock);
+        }
+
+        // ==================== GÁN RA GLOBAL ====================
+        window.App = {
+            selectMain: handlers.selectMain,
+            selectSub: handlers.selectSub,
+            updateRow: handlers.updateRow
+        };
+
+        // ==================== KHỞI TẠO ====================
+        function init() {
+            render.mainMenu();
+            handlers.selectMain("UBND tỉnh"); // mặc định chọn menu "UBND tỉnh" cho dễ test với file mẫu
+            document.getElementById('excelInput').addEventListener('change', handlers.handleExcelUpload);
+        }
+
+        init();
+    })();
 </script>
-
 </body>
 </html>
