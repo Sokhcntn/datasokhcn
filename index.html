@@ -3,363 +3,599 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ thống Quản trị Nhiệm vụ Chiến lược</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Theo dõi nhiệm vụ được giao</title>
+    <!-- Google Fonts & Font Awesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- SheetJS để đọc file Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-        
-        body {
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
             font-family: 'Inter', sans-serif;
-            overflow: hidden; 
         }
 
-        .dashboard-height { height: 28vh; }
-        .sidebar-width { width: 16vw; }
-        .submenu-height { height: 8vh; } 
-        .content-height { height: 64vh; }
-
-        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-        .status-badge {
-            font-size: 10px;
-            font-weight: 800;
-            padding: 2px 8px;
-            border-radius: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+        body {
+            height: 100vh;
+            overflow: hidden;
+            background-color: #f4f7fc;
         }
 
-        .stat-card-main {
-            @apply flex flex-col items-center justify-center px-6 border-r border-slate-700 last:border-0;
+        /* Grid chính */
+        .app {
+            display: grid;
+            grid-template-columns: 20% 80%;
+            height: 100vh;
+            transition: all 0.2s;
         }
 
-        .stat-card-sub {
-            @apply flex flex-col items-center justify-center px-6 border-r border-blue-200 last:border-0;
+        /* Sidebar menu chính */
+        .sidebar {
+            background: #1e293b;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem 0;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.1);
         }
 
-        .active-main-menu {
-            @apply bg-blue-600 text-white shadow-lg shadow-blue-900/20;
+        .menu-item {
+            padding: 1.2rem 1.5rem;
+            margin: 0.3rem 0;
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 5px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .menu-item i {
+            width: 24px;
+            font-size: 1.3rem;
+        }
+
+        /* Màu sắc riêng cho từng menu (nổi bật) */
+        .menu-item[data-menu="nq57"] { background: #ef4444; color: white; }
+        .menu-item[data-menu="tinhuy"] { background: #f97316; }
+        .menu-item[data-menu="ubnd"] { background: #10b981; }
+        .menu-item[data-menu="so"] { background: #3b82f6; }
+        .menu-item[data-menu="bigprob"] { background: #8b5cf6; }
+
+        .menu-item:hover {
+            filter: brightness(1.1);
+            transform: translateX(5px);
+        }
+
+        .menu-item.active {
+            border-left-color: white;
+            box-shadow: inset 0 0 0 2px rgba(255,255,255,0.5);
+        }
+
+        /* Khu vực bên phải */
+        .main {
+            display: grid;
+            grid-template-rows: 20% 0 1fr;  /* ẩn submenu ban đầu */
+            transition: grid-template-rows 0.2s;
+            background: #f8fafc;
+        }
+
+        .main.show-submenu {
+            grid-template-rows: 20% 12.5% 1fr; /* hiện submenu chiếm 1/8 chiều cao */
+        }
+
+        /* Dashboard */
+        .dashboard {
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: white;
+            padding: 1.5rem 2rem;
+            border-radius: 0 0 0 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .dashboard-content {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
+            min-width: 120px;
+        }
+
+        .stat-card h3 {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .stat-card p {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        /* Submenu bar */
+        .submenu-bar {
+            background: white;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            padding: 0 2rem;
+            gap: 1rem;
+            overflow-x: auto;
+            white-space: nowrap;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .submenu-item {
+            background: none;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            font-weight: 600;
+            color: #334155;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .submenu-item:hover {
+            background: #e2e8f0;
+        }
+
+        .submenu-item.active {
+            background: #1e293b;
+            color: white;
+        }
+
+        /* Khu vực bảng */
+        .table-container {
+            padding: 1.5rem 2rem;
+            overflow-y: auto;
+            background: white;
+            border-radius: 20px 0 0 0;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .upload-btn {
+            background: #1e293b;
+            color: white;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .upload-btn:hover {
+            background: #0f172a;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        th {
+            background: #f1f5f9;
+            padding: 1rem 0.8rem;
+            text-align: left;
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 0.9rem;
+        }
+
+        td {
+            padding: 0.8rem;
+            border-bottom: 1px solid #e2e8f0;
+            color: #334155;
+        }
+
+        tr:hover {
+            background: #f8fafc;
+        }
+
+        /* Dropdown tiến độ */
+        .progress-select {
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            border: 1px solid #cbd5e1;
+            background: white;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .progress-select:hover {
+            border-color: #64748b;
+        }
+
+        /* Responsive nhẹ */
+        @media (max-width: 900px) {
+            .app {
+                grid-template-columns: 30% 70%;
+            }
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 flex">
-
-    <!-- SIDEBAR -->
-    <aside class="sidebar-width h-screen bg-slate-900 text-white flex flex-col shadow-2xl z-50">
-        <div class="p-6 border-b border-slate-800">
-            <h1 class="text-xl font-black tracking-tighter text-blue-400 text-center uppercase">Quản lý nhiệm vụ</h1>
+<body>
+<div class="app" id="app">
+    <!-- Sidebar menu chính -->
+    <div class="sidebar">
+        <div class="menu-item active" data-menu="nq57">
+            <i class="fas fa-microchip"></i> NQ57
         </div>
-        
-        <nav class="flex-1 mt-6">
-            <div class="px-6 mb-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest italic text-center">Nhóm nhiệm vụ chính</div>
-            <ul id="mainMenu" class="space-y-1 px-3"></ul>
-        </nav>
-
-        <div class="p-4 border-t border-slate-800 bg-slate-950/50">
-            <label class="flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 p-3 rounded-xl transition text-[11px] font-bold justify-center uppercase shadow-lg">
-                <i data-lucide="file-up" class="w-4 h-4"></i>
-                Nạp dữ liệu Excel
-                <input type="file" id="excelInput" class="hidden" accept=".xlsx, .xls">
-            </label>
+        <div class="menu-item" data-menu="tinhuy">
+            <i class="fas fa-flag"></i> Tỉnh ủy
         </div>
-    </aside>
-
-    <!-- RIGHT SECTION -->
-    <div class="flex-1 flex flex-col overflow-hidden">
-        
-        <!-- DASHBOARD -->
-        <header class="dashboard-height flex flex-col shadow-sm z-30">
-            <div class="h-1/2 bg-slate-800 text-white flex items-center px-10 gap-8">
-                <div class="flex-1">
-                    <p class="text-blue-400 font-bold text-[10px] uppercase tracking-widest mb-1">Thống kê file hiện tại</p>
-                    <h2 id="dashboardTitle" class="text-2xl font-black leading-none uppercase tracking-tighter italic text-blue-100"></h2>
-                </div>
-                <div class="flex items-center h-full py-4">
-                    <div class="stat-card-main">
-                        <div id="stat-total" class="text-3xl font-black">0</div>
-                        <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Tổng dòng nạp</div>
-                    </div>
-                    <div class="stat-card-main">
-                        <div id="stat-pending" class="text-3xl font-black text-amber-400">0</div>
-                        <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Đang thực hiện</div>
-                    </div>
-                    <div class="stat-card-main border-0">
-                        <div id="stat-done" class="text-3xl font-black text-emerald-400">0</div>
-                        <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Đã hoàn thành</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="h-1/2 bg-blue-600 text-white flex items-center px-10 gap-8 shadow-inner">
-                <div class="flex-1 flex flex-col">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="layers" class="w-4 h-4 opacity-70"></i>
-                        <p id="currentSubLabel" class="text-xl font-bold italic tracking-tight">Vui lòng chọn mục</p>
-                    </div>
-                    <p class="text-[10px] font-medium text-blue-200 uppercase opacity-80 mt-1">Nội dung chi tiết & Tổng hợp (Sum)</p>
-                </div>
-                <div class="flex items-center h-full py-4">
-                    <div class="stat-card-sub">
-                        <div id="stat-sub-total" class="text-3xl font-black">0</div>
-                        <div class="text-[9px] font-bold text-blue-100 uppercase tracking-tighter">Sum (Nhiệm vụ)</div>
-                    </div>
-                    <div class="stat-card-sub border-0">
-                        <div id="stat-sub-done" class="text-2xl font-black text-blue-200">0</div>
-                        <div class="text-[9px] font-bold text-blue-100 uppercase tracking-tighter">Đã xong</div>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <!-- SUBMENU SELECTOR -->
-        <div class="submenu-height bg-white border-b border-slate-200 flex items-center px-10 overflow-x-auto custom-scroll gap-2" id="subMenu"></div>
-
-        <!-- MAIN TABLE CONTENT -->
-        <main class="content-height p-4 overflow-hidden bg-slate-100/50">
-            <div class="bg-white rounded-xl shadow-lg border border-slate-200 h-full flex flex-col overflow-hidden">
-                <div class="overflow-auto custom-scroll flex-1">
-                    <table class="w-full border-collapse text-left relative">
-                        <thead class="sticky top-0 bg-slate-50 z-20 shadow-sm border-b border-slate-200">
-                            <tr>
-                                <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-14 text-center">STT</th>
-                                <th class="p-4 text-[10px] font-bold text-slate-400 uppercase">Nội dung nhiệm vụ</th>
-                                <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-40 text-center">Đơn vị / Phân loại</th>
-                                <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-32 text-center">Hạn giao</th>
-                                <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-60 text-center">Tiến độ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="taskBody" class="divide-y divide-slate-100"></tbody>
-                    </table>
-                    <div id="noDataView" class="hidden flex flex-col items-center justify-center p-20 text-slate-400">
-                        <i data-lucide="info" class="w-12 h-12 mb-3 opacity-20"></i>
-                        <p class="font-bold">Không tìm thấy dữ liệu phù hợp với bộ lọc trong file nạp.</p>
-                    </div>
-                </div>
-            </div>
-        </main>
+        <div class="menu-item" data-menu="ubnd">
+            <i class="fas fa-building"></i> UBND tỉnh
+        </div>
+        <div class="menu-item" data-menu="so">
+            <i class="fas fa-folder-open"></i> Sở
+        </div>
+        <div class="menu-item" data-menu="bigprob">
+            <i class="fas fa-exclamation-triangle"></i> Big Problems
+        </div>
     </div>
 
-    <script>
-        const menuConfig = {
-            "Sở": { 
-                label: "Sở KH&CN", 
-                icon: "flask-conical", 
-                subs: ["Văn phòng", "P.CĐS", "P.KH", "P.TĐC", "P.CN&ĐMST", "P.TC-KH", "TT. CĐS", "TT.KH&CN", "ĐMST"] 
-            },
-            "UBND tỉnh": { 
-                label: "UBND Tỉnh", 
-                icon: "landmark", 
-                subs: ["Kịch bản tăng trưởng", "KH2390", "KH658", "Đề án 1330", "CTHĐ KT-XH", "CTLV"] 
-            },
-            "NQ57": { label: "Nghị quyết 57", icon: "file-text", subs: ["Hành động", "Hạ tầng", "Nhân lực", "Ngân sách"] },
-            "Tỉnh ủy": { label: "Tỉnh ủy", icon: "building-2", subs: ["Nghị quyết 11", "CTHD33", "CTLV25"] },
-            "Big Problems": { 
-                label: "Big Problems", 
-                icon: "zap", 
-                subs: ["UAV", "Kinh tế số", "Carbon", "Halal", "Năng lượng", "Hệ sinh thái", "AI"] 
-            }
+    <!-- Khu vực chính bên phải -->
+    <div class="main" id="main">
+        <!-- Dashboard -->
+        <div class="dashboard" id="dashboard">
+            <div class="dashboard-content" id="dashboardContent">
+                <!-- 4 stat card -->
+                <div class="stat-card">
+                    <h3>Tổng nhiệm vụ</h3>
+                    <p id="totalTasks">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Đang làm</h3>
+                    <p id="inProgress">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Hoàn thành</h3>
+                    <p id="completed">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Quá hạn</h3>
+                    <p id="overdue">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submenu bar (ẩn ban đầu) -->
+        <div class="submenu-bar" id="submenuBar"></div>
+
+        <!-- Bảng nhiệm vụ -->
+        <div class="table-container">
+            <div class="table-header">
+                <h2><i class="fas fa-tasks" style="margin-right: 10px; color:#1e293b;"></i>Danh sách nhiệm vụ</h2>
+                <button class="upload-btn" id="uploadBtn"><i class="fas fa-upload"></i> Tải lên Excel</button>
+                <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" style="display: none;">
+            </div>
+            <div style="overflow-x: auto;">
+                <table id="taskTable">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Nội dung nhiệm vụ</th>
+                            <th>Cơ quan chủ trì</th>
+                            <th>Cơ quan phối hợp</th>
+                            <th>Hạn giao</th>
+                            <th>Tiến độ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- Dữ liệu sẽ được load bằng JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ---------- DỮ LIỆU MẪU ----------
+        // Các menu con cho từng menu chính
+        const submenus = {
+            nq57: ['Chương trình 01', 'Chương trình 02', 'Đề án KHCN'],
+            tinhuy: ['Công tác tổ chức', 'Tuyên giáo', 'Dân vận'],
+            ubnd: ['Kinh tế', 'Văn xã', 'Đô thị'],
+            so: ['Sở KH&ĐT', 'Sở Tài chính', 'Sở GTVT'],
+            bigprob: ['Ô nhiễm môi trường', 'Giao thông ùn tắc', 'Chuyển đổi số']
         };
 
-        const progressOptions = ["Chưa làm", "Đang xử lý", "Chờ duyệt", "Đã hoàn thành"];
+        // Dữ liệu nhiệm vụ mẫu (key: `${mainMenu}_${submenuIndex}`)
+        const tasksData = {
+            nq57_0: [
+                { content: 'Xây dựng cơ chế đặc thù', chu_tri: 'Sở KH&ĐT', phoi_hop: 'Sở Tài chính', han_giao: '30/06/2025', tien_do: 'CV đang xử lý' },
+                { content: 'Phát triển nhân lực chất lượng cao', chu_tri: 'Sở Nội vụ', phoi_hop: 'Sở GD&ĐT', han_giao: '31/12/2025', tien_do: 'Chưa làm' },
+            ],
+            nq57_1: [
+                { content: 'Hỗ trợ doanh nghiệp khởi nghiệp', chu_tri: 'Sở KH&CN', phoi_hop: 'VCCI', han_giao: '15/09/2025', tien_do: 'PGĐ đang kiểm tra' },
+            ],
+            nq57_2: [
+                { content: 'Nghiên cứu ứng dụng AI', chu_tri: 'Sở TT&TT', phoi_hop: 'Viện CNTT', han_giao: '20/11/2025', tien_do: 'Lãnh đạo phòng đang kiểm tra' },
+            ],
+            tinhuy_0: [
+                { content: 'Kiện toàn bộ máy', chu_tri: 'Ban Tổ chức Tỉnh ủy', phoi_hop: 'VP Tỉnh ủy', han_giao: '10/04/2025', tien_do: 'Giám đốc duyệt' },
+            ],
+            // ... thêm mẫu cho các menu khác nếu cần
+        };
 
-        let masterData = []; 
-        let currentMainKey = "";
-        let currentSubName = "TẤT CẢ";
-
-        function init() {
-            renderMainMenu();
-            selectMain("Sở");
-            lucide.createIcons();
+        // Hàm tạo key từ main và chỉ số submenu
+        function getDataKey(mainMenu, subIndex) {
+            return `${mainMenu}_${subIndex}`;
         }
 
-        function renderMainMenu() {
-            const menuHtml = Object.keys(menuConfig).map(key => {
-                const cfg = menuConfig[key];
-                return `
-                    <li>
-                        <button onclick="selectMain('${key}')" id="menu-${key}" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold text-xs group">
-                            <i data-lucide="${cfg.icon}" class="w-4 h-4 opacity-40 group-hover:opacity-100"></i>
-                            <span class="flex-1 text-left uppercase tracking-tight">${cfg.label}</span>
-                        </button>
-                    </li>
-                `;
-            }).join('');
-            document.getElementById('mainMenu').innerHTML = menuHtml;
-        }
-
-        function selectMain(key) {
-            currentMainKey = key;
-            document.querySelectorAll('#mainMenu button').forEach(btn => btn.classList.remove('active-main-menu'));
-            const activeBtn = document.getElementById(`menu-${key}`);
-            if (activeBtn) activeBtn.classList.add('active-main-menu');
-            
-            const cfg = menuConfig[key];
-            document.getElementById('dashboardTitle').innerText = cfg.label;
-            
-            // Xây dựng SubMenu
-            const allSubs = ["TẤT CẢ", ...cfg.subs];
-            const subHtml = allSubs.map(sub => `
-                <button onclick="selectSub('${sub}')" class="sub-btn whitespace-nowrap px-4 py-2 rounded-lg border border-slate-200 text-[11px] font-black uppercase transition-all bg-slate-50 hover:bg-white hover:shadow-sm">
-                    ${sub}
-                </button>
-            `).join('');
-            document.getElementById('subMenu').innerHTML = subHtml;
-            
-            if (masterData.length === 0) {
-                generateSampleData();
+        // Hàm chuyển đổi chuỗi ngày dd/mm/yyyy thành Date object
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                const d = parseInt(parts[0], 10);
+                const m = parseInt(parts[1], 10) - 1; // tháng 0-11
+                const y = parseInt(parts[2], 10);
+                return new Date(y, m, d);
             }
-            
-            selectSub("TẤT CẢ");
+            return null;
         }
 
-        function generateSampleData() {
-            masterData = [
-                { id: "sample1", "Nội dung": "Vui lòng nạp file Excel để bắt đầu thống kê", "Đơn vị": "Hệ thống", "Hạn": "---", "Tiến độ": "Chưa làm" }
-            ];
-        }
+        // ---------- BIẾN TOÀN CỤC ----------
+        let currentMain = 'nq57';          // menu chính đang chọn
+        let currentSubIndex = 0;            // chỉ số submenu đang chọn (0-based)
+        let currentSubList = submenus['nq57']; // danh sách submenu hiện tại
 
-        function selectSub(sub) {
-            currentSubName = sub;
-            document.getElementById('currentSubLabel').innerText = sub === "TẤT CẢ" ? `Tổng hợp: ${menuConfig[currentMainKey].label}` : sub;
-            
-            document.querySelectorAll('.sub-btn').forEach(btn => {
-                if(btn.innerText.trim() === sub.trim()) {
-                    btn.classList.add('bg-blue-700', 'text-white', 'border-blue-700');
-                    btn.classList.remove('bg-slate-50');
+        // ---------- CÁC HÀM HIỂN THỊ ----------
+        function renderDashboard() {
+            const key = getDataKey(currentMain, currentSubIndex);
+            const tasks = tasksData[key] || [];
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // so sánh ngày, không cần giờ
+
+            let total = tasks.length;
+            let completed = 0;
+            let overdue = 0;
+
+            tasks.forEach(task => {
+                if (task.tien_do === 'Đã hoàn thành') {
+                    completed++;
                 } else {
-                    btn.classList.remove('bg-blue-700', 'text-white', 'border-blue-700');
-                    btn.classList.add('bg-slate-50');
+                    // Chưa hoàn thành, kiểm tra quá hạn
+                    const dueDate = parseDate(task.han_giao);
+                    if (dueDate && dueDate < today) {
+                        overdue++;
+                    }
                 }
             });
-            renderDisplay();
+
+            let inProgress = total - completed - overdue; // còn lại đang làm (chưa hoàn thành, chưa quá hạn)
+
+            document.getElementById('totalTasks').innerText = total;
+            document.getElementById('inProgress').innerText = inProgress;
+            document.getElementById('completed').innerText = completed;
+            document.getElementById('overdue').innerText = overdue;
         }
 
-        function renderDisplay() {
-            const body = document.getElementById('taskBody');
-            const emptyView = document.getElementById('noDataView');
-            const currentSubs = menuConfig[currentMainKey].subs;
-
-            let filteredTasks = [];
-
-            // CHUẨN HÓA LOGIC LỌC
-            if (currentSubName === "TẤT CẢ") {
-                // SUM: Lấy tất cả các dòng mà Content hoặc Unit chứa bất kỳ SubMenu nào của nhóm này
-                filteredTasks = masterData.filter(t => {
-                    const content = (t["Nội dung"] || "").toString().toLowerCase();
-                    const unit = (t["Đơn vị"] || "").toString().toLowerCase();
-                    return currentSubs.some(s => {
-                        const searchKey = s.toLowerCase().trim();
-                        return content.includes(searchKey) || unit.includes(searchKey);
-                    });
+        function renderSubmenuBar() {
+            const bar = document.getElementById('submenuBar');
+            bar.innerHTML = ''; // Xoá cũ
+            currentSubList.forEach((name, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'submenu-item' + (index === currentSubIndex ? ' active' : '');
+                btn.innerText = name;
+                btn.dataset.index = index;
+                btn.addEventListener('click', function() {
+                    // Cập nhật active
+                    document.querySelectorAll('.submenu-item').forEach(el => el.classList.remove('active'));
+                    this.classList.add('active');
+                    currentSubIndex = parseInt(this.dataset.index);
+                    renderTaskTable();
+                    renderDashboard();
                 });
-            } else {
-                // CHI TIẾT: Lọc chính xác theo từ khóa SubMenu đang chọn
-                const searchKey = currentSubName.toLowerCase().trim();
-                filteredTasks = masterData.filter(t => {
-                    const content = (t["Nội dung"] || "").toString().toLowerCase();
-                    const unit = (t["Đơn vị"] || "").toString().toLowerCase();
-                    return content.includes(searchKey) || unit.includes(searchKey);
+                bar.appendChild(btn);
+            });
+        }
+
+        function renderTaskTable() {
+            const key = getDataKey(currentMain, currentSubIndex);
+            const tasks = tasksData[key] || [];
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            tasks.forEach((task, idx) => {
+                const row = document.createElement('tr');
+                // STT
+                const cellSTT = document.createElement('td');
+                cellSTT.innerText = idx + 1;
+                row.appendChild(cellSTT);
+                // Nội dung
+                const cellContent = document.createElement('td');
+                cellContent.innerText = task.content;
+                row.appendChild(cellContent);
+                // Cơ quan chủ trì
+                const cellChuTri = document.createElement('td');
+                cellChuTri.innerText = task.chu_tri;
+                row.appendChild(cellChuTri);
+                // Cơ quan phối hợp
+                const cellPhoiHop = document.createElement('td');
+                cellPhoiHop.innerText = task.phoi_hop;
+                row.appendChild(cellPhoiHop);
+                // Hạn giao
+                const cellHan = document.createElement('td');
+                cellHan.innerText = task.han_giao;
+                row.appendChild(cellHan);
+                // Tiến độ (dropdown)
+                const cellTienDo = document.createElement('td');
+                const select = document.createElement('select');
+                select.className = 'progress-select';
+                const options = [
+                    'Chưa làm',
+                    'CV đang xử lý',
+                    'Lãnh đạo phòng đang kiểm tra',
+                    'PGĐ đang kiểm tra',
+                    'Giám đốc duyệt',
+                    'Lấy ý kiến Sở ngành',
+                    'VP UBND tỉnh',
+                    'VP Tỉnh ủy',
+                    'Đã hoàn thành'  // Thêm mới
+                ];
+                options.forEach(opt => {
+                    const optionEl = document.createElement('option');
+                    optionEl.value = opt;
+                    optionEl.innerText = opt;
+                    if (opt === task.tien_do) optionEl.selected = true;
+                    select.appendChild(optionEl);
                 });
-            }
+                // Lưu lại khi thay đổi
+                select.addEventListener('change', function(e) {
+                    task.tien_do = e.target.value;
+                    // Cập nhật lại tasksData (đã tham chiếu trực tiếp)
+                    renderDashboard(); // cập nhật thống kê
+                });
+                cellTienDo.appendChild(select);
+                row.appendChild(cellTienDo);
 
-            // HIỂN THỊ LÊN BẢNG
-            if (filteredTasks.length === 0) {
-                body.innerHTML = "";
-                emptyView.classList.remove('hidden');
+                tbody.appendChild(row);
+            });
+
+            // Nếu không có nhiệm vụ, hiển thị dòng thông báo
+            if (tasks.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 6;
+                cell.style.textAlign = 'center';
+                cell.style.padding = '2rem';
+                cell.innerText = 'Chưa có nhiệm vụ nào. Hãy tải lên file Excel.';
+                row.appendChild(cell);
+                tbody.appendChild(row);
+            }
+        }
+
+        // Cập nhật toàn bộ giao diện khi chuyển menu chính
+        function switchMainMenu(menu) {
+            currentMain = menu;
+            currentSubList = submenus[menu] || [];
+            currentSubIndex = 0; // về submenu đầu tiên
+
+            // Cập nhật active trên sidebar
+            document.querySelectorAll('.menu-item').forEach(el => {
+                el.classList.remove('active');
+                if (el.dataset.menu === menu) el.classList.add('active');
+            });
+
+            // Hiện submenu bar nếu có submenu
+            const mainEl = document.getElementById('main');
+            if (currentSubList.length > 0) {
+                mainEl.classList.add('show-submenu');
             } else {
-                emptyView.classList.add('hidden');
-                body.innerHTML = filteredTasks.map((task, index) => {
-                    const isDone = task["Tiến độ"] === 'Đã hoàn thành';
-                    return `
-                        <tr class="hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
-                            <td class="p-4 text-center font-bold text-slate-300 text-xs">${index + 1}</td>
-                            <td class="p-4 font-semibold text-slate-800 text-sm leading-relaxed">${task["Nội dung"]}</td>
-                            <td class="p-4 text-center">
-                                <span class="text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded uppercase tracking-tighter">
-                                    ${task["Đơn vị"] || "Chưa phân loại"}
-                                </span>
-                            </td>
-                            <td class="p-4 text-center text-xs font-mono font-bold text-slate-600">${task["Hạn"] || "---"}</td>
-                            <td class="p-4">
-                                <div class="flex items-center gap-2">
-                                    <select onchange="updateRow('${task.id}', this.value)" class="flex-1 bg-white border border-slate-200 rounded p-1.5 text-[10px] font-bold shadow-sm focus:border-blue-500 outline-none">
-                                        ${progressOptions.map(opt => `<option value="${opt}" ${task["Tiến độ"] === opt ? 'selected' : ''}>${opt}</option>`).join('')}
-                                    </select>
-                                    <span class="status-badge ${isDone ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'} min-w-[75px] text-center">
-                                        ${isDone ? 'Xong' : 'Đang xử lý'}
-                                    </span>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
+                mainEl.classList.remove('show-submenu');
             }
 
-            // CẬP NHẬT CÁC CON SỐ SUM VÀ STATS
-            updateStats(filteredTasks);
-            lucide.createIcons();
+            // Vẽ lại submenu và bảng
+            renderSubmenuBar();
+            renderTaskTable();
+            renderDashboard();
         }
 
-        function updateRow(id, val) {
-            const task = masterData.find(t => t.id.toString() === id.toString());
-            if(task) {
-                task["Tiến độ"] = val;
-                renderDisplay();
-            }
-        }
-
-        function updateStats(filtered) {
-            // Stats tổng của toàn bộ file
-            document.getElementById('stat-total').innerText = masterData.length;
-            document.getElementById('stat-done').innerText = masterData.filter(t => t["Tiến độ"] === "Đã hoàn thành").length;
-            document.getElementById('stat-pending').innerText = masterData.filter(t => t["Tiến độ"] !== "Đã hoàn thành").length;
-            
-            // Stats SUM của mục đang chọn (nếu là TẤT CẢ thì là tổng nhóm)
-            document.getElementById('stat-sub-total').innerText = filtered.length;
-            document.getElementById('stat-sub-done').innerText = filtered.filter(t => t["Tiến độ"] === "Đã hoàn thành").length;
-        }
-
-        // XỬ LÝ FILE EXCEL
-        document.getElementById('excelInput').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const data = new Uint8Array(event.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const raw = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                
-                // Refresh masterData
-                masterData = raw.map((row, idx) => {
-                    const keys = Object.keys(row);
-                    const findValue = (terms) => {
-                        const key = keys.find(k => terms.some(t => k.toLowerCase().replace(/\s/g, '').includes(t)));
-                        return key ? row[key] : "";
-                    };
-
-                    return {
-                        id: `task-${Date.now()}-${idx}`,
-                        "Nội dung": findValue(["nộidung", "nhiệmvụ", "côngviệc", "tên"]),
-                        "Đơn vị": findValue(["đơnvị", "cơquan", "chủtrì", "phòng", "mục"]),
-                        "Hạn": findValue(["hạn", "thờigian", "ngày"]),
-                        "Tiến độ": findValue(["tiếndộ", "trạngthái"]) || progressOptions[0]
-                    };
-                }).filter(t => t["Nội dung"] && t["Nội dung"].toString().trim() !== "");
-
-                // Sau khi nạp thành công, ưu tiên hiển thị SUM của nhóm "Sở"
-                currentMainKey = "Sở";
-                selectMain("Sở");
-            };
-            reader.readAsArrayBuffer(file);
+        // ---------- XỬ LÝ UPLOAD EXCEL ----------
+        document.getElementById('uploadBtn').addEventListener('click', function() {
+            document.getElementById('fileInput').click();
         });
 
-        window.onload = init;
-    </script>
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(loadEvent) {
+                const data = new Uint8Array(loadEvent.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheet];
+                // Chuyển thành JSON, giả sử hàng đầu là tiêu đề
+                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                if (rows.length < 2) return; // không có dữ liệu
+
+                // Bỏ qua dòng tiêu đề (rows[0]), lấy từ dòng 1
+                const newTasks = [];
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (row.length < 5) continue; // không đủ cột
+                    // Mong đợi: STT (có thể bỏ qua), Nội dung, Chủ trì, Phối hợp, Hạn giao, Tiến độ
+                    const task = {
+                        content: row[1] || '',
+                        chu_tri: row[2] || '',
+                        phoi_hop: row[3] || '',
+                        han_giao: row[4] || '',
+                        tien_do: row[5] || 'Chưa làm'
+                    };
+                    // Kiểm tra tiến độ có trong danh sách không? Nếu không thì set mặc định
+                    const validOptions = [
+                        'Chưa làm', 'CV đang xử lý', 'Lãnh đạo phòng đang kiểm tra',
+                        'PGĐ đang kiểm tra', 'Giám đốc duyệt', 'Lấy ý kiến Sở ngành',
+                        'VP UBND tỉnh', 'VP Tỉnh ủy', 'Đã hoàn thành'
+                    ];
+                    if (!validOptions.includes(task.tien_do)) {
+                        task.tien_do = 'Chưa làm';
+                    }
+                    newTasks.push(task);
+                }
+
+                // Lưu vào tasksData theo key hiện tại
+                const key = getDataKey(currentMain, currentSubIndex);
+                tasksData[key] = newTasks;
+
+                // Render lại bảng
+                renderTaskTable();
+                renderDashboard();
+            };
+            reader.readAsArrayBuffer(file);
+            // Reset input để có thể upload lại file cùng tên
+            e.target.value = '';
+        });
+
+        // ---------- SỰ KIỆN CLICK MENU CHÍNH ----------
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const menu = this.dataset.menu;
+                switchMainMenu(menu);
+            });
+        });
+
+        // ---------- KHỞI TẠO BAN ĐẦU ----------
+        switchMainMenu('nq57');
+    })();
+</script>
 </body>
 </html>
