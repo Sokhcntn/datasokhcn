@@ -48,7 +48,7 @@
     <div class="p-4 border-t border-slate-800 bg-slate-950/50">
         <label class="flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 p-3 rounded-xl transition text-[11px] font-bold justify-center uppercase shadow-lg shadow-blue-900/20">
             <i data-lucide="file-up" class="w-4 h-4"></i>
-            Nạp dữ liệu Excel
+            Nạp dữ liệu Excel (vào menu con hiện tại)
             <input type="file" id="excelInput" class="hidden" accept=".xlsx, .xls">
         </label>
     </div>
@@ -59,10 +59,10 @@
 
     <!-- DASHBOARD (2 DÒNG) -->
     <header class="dashboard-height flex flex-col shadow-sm z-30">
-        <!-- Dòng trên: thống kê toàn hệ thống (theo nhóm chính) -->
+        <!-- Dòng trên: thống kê toàn hệ thống -->
         <div class="h-1/2 bg-slate-800 text-white flex items-center px-10 gap-8">
             <div class="flex-1">
-                <p class="text-blue-400 font-bold text-[10px] uppercase tracking-widest mb-1">Tổng quan nhóm chính</p>
+                <p class="text-blue-400 font-bold text-[10px] uppercase tracking-widest mb-1">Tổng quan toàn bộ hệ thống</p>
                 <h2 id="dashboardTitle" class="text-2xl font-black leading-none uppercase tracking-tighter italic text-blue-100"></h2>
             </div>
             <div class="flex items-center h-full py-4">
@@ -84,7 +84,7 @@
                 </div>
             </div>
         </div>
-        <!-- Dòng dưới: thống kê cho submenu đang chọn -->
+        <!-- Dòng dưới: thống kê cho mục con đang chọn -->
         <div class="h-1/2 bg-blue-600 text-white flex items-center px-10 gap-8 shadow-inner">
             <div class="flex-1 flex flex-col">
                 <div class="flex items-center gap-2">
@@ -117,16 +117,9 @@
     <main class="content-height p-4 overflow-hidden bg-slate-100/50">
         <div class="bg-white rounded-xl shadow-lg border border-slate-200 h-full flex flex-col overflow-hidden">
             <div class="overflow-auto custom-scroll flex-1">
-                <table class="w-full border-collapse text-left relative">
+                <table class="w-full border-collapse text-left relative" id="dataTable">
                     <thead class="sticky top-0 bg-slate-50 z-20 shadow-sm border-b border-slate-200">
-                        <tr>
-                            <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-14 text-center">STT</th>
-                            <th class="p-4 text-[10px] font-bold text-slate-400 uppercase">Nội dung nhiệm vụ</th>
-                            <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-40 text-center">Cơ quan chủ trì</th>
-                            <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-40 text-center">Cơ quan phối hợp</th>
-                            <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-32 text-center">Hạn giao</th>
-                            <th class="p-4 text-[10px] font-bold text-slate-400 uppercase w-64 text-center">Tiến độ cập nhật</th>
-                        </tr>
+                        <tr id="tableHeader"></tr>
                     </thead>
                     <tbody id="taskBody" class="divide-y divide-slate-100"></tbody>
                 </table>
@@ -170,33 +163,19 @@
         };
 
         // ==================== STATE ====================
-        let state = {
-            tasks: [],              // mảng tất cả nhiệm vụ, mỗi task có các trường: id, mainKey, submenu, noiDung, donVi, phoiHop, han, tienDo
-            currentMainKey: "",      // key của menu chính đang chọn
-            currentSubName: "TẤT CẢ" // tên submenu đang chọn
-        };
+        // tasks: { mainKey: { subName: { headers: [...], rows: [ {...}, ... ] } } }
+        let tasks = {};
+        let currentMainKey = "Sở";
+        let currentSubName = "TẤT CẢ";
 
         // ==================== HÀM TIỆN ÍCH ====================
         const utils = {
-            // Tạo ID duy nhất
             generateId: () => {
                 if (typeof crypto !== 'undefined' && crypto.randomUUID) {
                     return crypto.randomUUID();
                 }
                 return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
             },
-
-            // Chuẩn hóa chuỗi (bỏ dấu, lowercase, trim) - dùng cho tìm kiếm nếu cần
-            normalizeString: (str) => {
-                if (!str) return '';
-                return str.normalize("NFD")
-                    .replace(/[\u0300-\u036f]/g, "")
-                    .toLowerCase()
-                    .trim()
-                    .replace(/\s+/g, ' ');
-            },
-
-            // Chuyển chuỗi ngày dd/mm/yyyy hoặc yyyy-mm-dd thành Date (trả về null nếu lỗi)
             parseDate: (dateStr) => {
                 if (!dateStr) return null;
                 let parts = dateStr.split('/');
@@ -215,8 +194,6 @@
                 }
                 return null;
             },
-
-            // Xác định trạng thái: DONE, OVERDUE, PENDING
             getStatus: (progress, deadlineStr) => {
                 if (progress === "Đã hoàn thành" || progress === "Giám đốc duyệt") {
                     return "DONE";
@@ -229,19 +206,58 @@
                 }
                 return "PENDING";
             },
-
-            // Format ngày thành dd/mm/yyyy (dùng cho dữ liệu mẫu)
-            formatDate: (date) => {
-                const d = date.getDate().toString().padStart(2, '0');
-                const m = (date.getMonth() + 1).toString().padStart(2, '0');
-                const y = date.getFullYear();
-                return `${d}/${m}/${y}`;
+            // Tìm chỉ số của cột tiến độ (để hiển thị dropdown)
+            findProgressColumnIndex: (headers) => {
+                const keywords = ["tiến độ", "trạng thái", "progress"];
+                for (let i = 0; i < headers.length; i++) {
+                    const header = headers[i].toLowerCase();
+                    if (keywords.some(kw => header.includes(kw))) {
+                        return i;
+                    }
+                }
+                return -1; // không tìm thấy
             }
         };
 
+        // ==================== HÀM LẤY DỮ LIỆU ====================
+        function getDataForMain(mainKey) {
+            return tasks[mainKey] || {};
+        }
+
+        function getCurrentData() {
+            const mainData = getDataForMain(currentMainKey);
+            if (currentSubName === "TẤT CẢ") {
+                // Hợp nhất tất cả các mảng con
+                const allRows = [];
+                const allHeaders = [];
+                for (const sub in mainData) {
+                    if (mainData[sub].headers) {
+                        // Lấy headers từ sub đầu tiên (giả sử các sub có cùng cấu trúc)
+                        if (allHeaders.length === 0) {
+                            allHeaders.push(...mainData[sub].headers);
+                        }
+                        allRows.push(...mainData[sub].rows);
+                    }
+                }
+                return { headers: allHeaders, rows: allRows };
+            } else {
+                return mainData[currentSubName] || { headers: [], rows: [] };
+            }
+        }
+
+        function getAllTasks() {
+            // Tất cả nhiệm vụ từ mọi menu chính (dùng cho dashboard tổng)
+            const allRows = [];
+            for (const main in tasks) {
+                for (const sub in tasks[main]) {
+                    allRows.push(...(tasks[main][sub].rows || []));
+                }
+            }
+            return allRows;
+        }
+
         // ==================== HÀM RENDER ====================
         const render = {
-            // Vẽ menu chính
             mainMenu: () => {
                 const container = document.getElementById('mainMenu');
                 const html = Object.keys(CONFIG.menu).map(key => {
@@ -259,9 +275,8 @@
                 lucide.createIcons();
             },
 
-            // Vẽ thanh submenu dựa trên menu chính hiện tại
             subMenu: () => {
-                const cfg = CONFIG.menu[state.currentMainKey];
+                const cfg = CONFIG.menu[currentMainKey];
                 if (!cfg) return;
                 const allSubs = ["TẤT CẢ", ...cfg.subs];
                 const container = document.getElementById('subMenu');
@@ -272,9 +287,8 @@
                 `).join('');
                 container.innerHTML = html;
 
-                // Đánh dấu active cho sub hiện tại
                 document.querySelectorAll('.sub-btn').forEach(btn => {
-                    if (btn.innerText.trim() === state.currentSubName) {
+                    if (btn.innerText.trim() === currentSubName) {
                         btn.classList.add('bg-blue-700', 'text-white', 'border-blue-700');
                         btn.classList.remove('bg-slate-50');
                     } else {
@@ -284,13 +298,24 @@
                 });
             },
 
-            // Vẽ bảng nhiệm vụ dựa trên danh sách đã lọc
-            taskTable: (filteredTasks) => {
+            taskTable: () => {
+                const data = getCurrentData();
+                const headers = data.headers || [];
+                const rows = data.rows || [];
                 const tbody = document.getElementById('taskBody');
+                const thead = document.getElementById('tableHeader');
                 const emptyView = document.getElementById('noDataView');
-                const fragment = document.createDocumentFragment();
 
-                if (filteredTasks.length === 0) {
+                // Render header động
+                if (headers.length === 0) {
+                    thead.innerHTML = ''; // không có header
+                } else {
+                    thead.innerHTML = headers.map(h => 
+                        `<th class="p-4 text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">${h}</th>`
+                    ).join('');
+                }
+
+                if (rows.length === 0) {
                     tbody.innerHTML = '';
                     emptyView.classList.remove('hidden');
                     return;
@@ -298,38 +323,51 @@
 
                 emptyView.classList.add('hidden');
 
-                filteredTasks.forEach((task, index) => {
-                    const status = utils.getStatus(task.tienDo, task.han);
-                    let badgeClass = "bg-blue-100 text-blue-700"; // pending
-                    let badgeText = "Đang làm";
-                    if (status === "DONE") {
-                        badgeClass = "bg-emerald-100 text-emerald-700";
-                        badgeText = "Xong";
-                    } else if (status === "OVERDUE") {
-                        badgeClass = "bg-rose-100 text-rose-700";
-                        badgeText = "Quá hạn";
+                // Tìm cột tiến độ để hiển thị dropdown
+                const progressColIndex = utils.findProgressColumnIndex(headers);
+
+                // Tạo các dòng dữ liệu
+                const fragment = document.createDocumentFragment();
+                rows.forEach((row, index) => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50 transition';
+
+                    for (let i = 0; i < headers.length; i++) {
+                        const td = document.createElement('td');
+                        td.className = 'p-4 text-sm';
+
+                        if (i === progressColIndex) {
+                            // Cột tiến độ: hiển thị dropdown + badge
+                            const progressValue = row[headers[i]] || CONFIG.progressOptions[0];
+                            const status = utils.getStatus(progressValue, row["Hạn giao"] || row["Hạn"] || "");
+                            
+                            let badgeClass = "bg-blue-100 text-blue-700";
+                            let badgeText = "Đang làm";
+                            if (status === "DONE") {
+                                badgeClass = "bg-emerald-100 text-emerald-700";
+                                badgeText = "Xong";
+                            } else if (status === "OVERDUE") {
+                                badgeClass = "bg-rose-100 text-rose-700";
+                                badgeText = "Quá hạn";
+                            }
+
+                            td.innerHTML = `
+                                <div class="flex items-center gap-3">
+                                    <select onchange="App.updateRow('${row._id}', ${i}, this.value)" class="flex-1 bg-white border border-slate-200 rounded p-1.5 text-[11px] font-bold shadow-sm">
+                                        ${CONFIG.progressOptions.map(opt => `<option value="${opt}" ${progressValue === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                                    </select>
+                                    <span class="status-badge ${badgeClass} min-w-[80px] text-center shadow-sm">${badgeText}</span>
+                                </div>
+                            `;
+                        } else {
+                            // Các cột khác: hiển thị text bình thường
+                            td.textContent = row[headers[i]] || '';
+                            td.classList.add('text-slate-800');
+                        }
+                        tr.appendChild(td);
                     }
 
-                    const row = document.createElement('tr');
-                    row.className = 'hover:bg-slate-50 transition';
-                    row.innerHTML = `
-                        <td class="p-4 text-center font-bold text-slate-300 text-xs">${index + 1}</td>
-                        <td class="p-4 font-semibold text-slate-800 text-sm">${task.noiDung || "Không có tiêu đề"}</td>
-                        <td class="p-4 text-center">
-                            <span class="text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded uppercase">${task.donVi || "N/A"}</span>
-                        </td>
-                        <td class="p-4 text-center text-xs text-slate-600">${task.phoiHop || "—"}</td>
-                        <td class="p-4 text-center text-xs font-mono font-bold text-slate-600">${task.han || "---"}</td>
-                        <td class="p-4">
-                            <div class="flex items-center gap-3">
-                                <select onchange="App.updateRow('${task.id}', this.value)" class="flex-1 bg-white border border-slate-200 rounded p-1.5 text-[11px] font-bold shadow-sm">
-                                    ${CONFIG.progressOptions.map(opt => `<option value="${opt}" ${task.tienDo === opt ? 'selected' : ''}>${opt}</option>`).join('')}
-                                </select>
-                                <span class="status-badge ${badgeClass} min-w-[80px] text-center shadow-sm">${badgeText}</span>
-                            </div>
-                        </td>
-                    `;
-                    fragment.appendChild(row);
+                    fragment.appendChild(tr);
                 });
 
                 tbody.innerHTML = '';
@@ -337,22 +375,26 @@
                 lucide.createIcons();
             },
 
-            // Cập nhật tất cả số liệu thống kê
-            stats: (filteredTasks) => {
-                // Lọc tất cả tasks thuộc mainKey hiện tại
-                const mainTasks = state.tasks.filter(t => t.mainKey === state.currentMainKey);
-
-                // Thống kê toàn nhóm chính
-                const total = mainTasks.length;
+            stats: () => {
+                // Thống kê toàn hệ thống
+                const allTasks = getAllTasks();
+                const total = allTasks.length;
                 let done = 0, pending = 0, overdue = 0;
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
 
-                mainTasks.forEach(t => {
-                    if (t.tienDo === "Đã hoàn thành" || t.tienDo === "Giám đốc duyệt") {
+                allTasks.forEach(row => {
+                    // Tìm cột tiến độ và hạn giao
+                    const progress = Object.values(row).find(v => 
+                        typeof v === 'string' && CONFIG.progressOptions.includes(v)
+                    ) || "Chưa làm";
+                    
+                    const deadlineStr = row["Hạn giao"] || row["Hạn"] || "";
+                    
+                    if (progress === "Đã hoàn thành" || progress === "Giám đốc duyệt") {
                         done++;
                     } else {
-                        const deadline = utils.parseDate(t.han);
+                        const deadline = utils.parseDate(deadlineStr);
                         if (deadline && deadline < today) {
                             overdue++;
                         } else {
@@ -366,11 +408,16 @@
                 document.getElementById('stat-overdue').innerText = overdue;
                 document.getElementById('stat-done').innerText = done;
 
-                // Thống kê cho submenu đang chọn (filteredTasks)
-                const subTotal = filteredTasks.length;
+                // Thống kê cho mục đang chọn
+                const currentData = getCurrentData();
+                const currentRows = currentData.rows || [];
+                const subTotal = currentRows.length;
                 let subDone = 0, subPending = 0;
-                filteredTasks.forEach(t => {
-                    if (t.tienDo === "Đã hoàn thành" || t.tienDo === "Giám đốc duyệt") {
+                currentRows.forEach(row => {
+                    const progress = Object.values(row).find(v => 
+                        typeof v === 'string' && CONFIG.progressOptions.includes(v)
+                    ) || "Chưa làm";
+                    if (progress === "Đã hoàn thành" || progress === "Giám đốc duyệt") {
                         subDone++;
                     } else {
                         subPending++;
@@ -382,50 +429,31 @@
                 document.getElementById('stat-sub-done').innerText = subDone;
             },
 
-            // Cập nhật toàn bộ giao diện sau khi state thay đổi
             all: () => {
-                // Lọc tasks theo mainKey và submenu
-                const filtered = state.tasks.filter(t => t.mainKey === state.currentMainKey && 
-                    (state.currentSubName === "TẤT CẢ" || t.submenu === state.currentSubName));
-
-                render.taskTable(filtered);
-                render.stats(filtered);
+                render.taskTable();
+                render.stats();
             }
         };
 
         // ==================== XỬ LÝ SỰ KIỆN ====================
         const handlers = {
-            // Chọn menu chính
             selectMain: (key) => {
-                state.currentMainKey = key;
-                state.currentSubName = "TẤT CẢ"; // reset về "TẤT CẢ"
+                currentMainKey = key;
+                currentSubName = "TẤT CẢ";
 
-                // Cập nhật active trên menu chính
                 document.querySelectorAll('#mainMenu button').forEach(btn => btn.classList.remove('bg-blue-600', 'text-white'));
                 const activeBtn = document.getElementById(`menu-${key}`);
                 if (activeBtn) activeBtn.classList.add('bg-blue-600', 'text-white');
 
-                // Cập nhật tiêu đề dashboard
                 document.getElementById('dashboardTitle').innerText = CONFIG.menu[key].label;
-
-                // Vẽ lại submenu
                 render.subMenu();
-
-                // Nếu chưa có dữ liệu cho nhóm này, tạo dữ liệu mẫu
-                if (!state.tasks.some(t => t.mainKey === key)) {
-                    generateMockData(key);
-                }
-
-                // Cập nhật toàn bộ giao diện
                 render.all();
             },
 
-            // Chọn submenu
             selectSub: (sub) => {
-                state.currentSubName = sub;
+                currentSubName = sub;
                 document.getElementById('currentSubLabel').innerText = sub === "TẤT CẢ" ? "Toàn bộ danh sách" : sub;
 
-                // Cập nhật active cho submenu
                 document.querySelectorAll('.sub-btn').forEach(btn => {
                     if (btn.innerText.trim() === sub) {
                         btn.classList.add('bg-blue-700', 'text-white', 'border-blue-700');
@@ -439,26 +467,19 @@
                 render.all();
             },
 
-            // Cập nhật tiến độ của một nhiệm vụ
-            updateRow: (id, newVal) => {
-                const task = state.tasks.find(t => t.id === id);
-                if (task) {
-                    task.tienDo = newVal;
+            updateRow: (rowId, colIndex, newValue) => {
+                // Tìm row trong dữ liệu hiện tại
+                const data = getCurrentData();
+                const row = data.rows.find(r => r._id === rowId);
+                if (row && data.headers[colIndex]) {
+                    row[data.headers[colIndex]] = newValue;
                     render.all();
                 }
             },
 
-            // Xử lý upload file Excel
             handleExcelUpload: (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
-
-                // Chỉ cho phép upload khi đang chọn một submenu cụ thể (không phải "TẤT CẢ")
-                if (state.currentSubName === "TẤT CẢ") {
-                    alert("Vui lòng chọn một submenu cụ thể để upload dữ liệu.");
-                    event.target.value = '';
-                    return;
-                }
 
                 const reader = new FileReader();
                 reader.onload = (e) => {
@@ -466,107 +487,49 @@
                     const workbook = XLSX.read(data, { type: 'array' });
                     const sheetName = workbook.SheetNames[0];
                     const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+                    
                     if (rows.length < 2) {
                         alert("File Excel không có dữ liệu (cần ít nhất 2 dòng).");
                         return;
                     }
 
-                    const headers = rows[0].map(h => (h || "").toString().toLowerCase().trim());
-
-                    // Tìm chỉ số cột dựa trên từ khóa (ưu tiên thứ tự)
-                    const findColIndex = (keywords) => {
-                        for (let kw of keywords) {
-                            const idx = headers.findIndex(h => h.includes(kw));
-                            if (idx !== -1) return idx;
-                        }
-                        return -1;
-                    };
-
-                    // Ánh xạ cột theo cấu trúc file mẫu
-                    const idxNoiDung = findColIndex(["nội dung nhiệm vụ", "nội dung", "nhiệm vụ"]);
-                    const idxDonVi = findColIndex(["cơ quan chủ trì", "chủ trì", "đơn vị chủ trì"]);
-                    const idxPhoiHop = findColIndex(["cơ quan phối hợp", "phối hợp"]);
-                    const idxHan = findColIndex(["hạn giao", "hạn", "thời gian"]);
-                    const idxTienDo = findColIndex(["tiến độ", "trạng thái"]);
-
-                    // Thông báo nếu thiếu cột quan trọng
-                    if (idxNoiDung === -1) console.warn("Không tìm thấy cột Nội dung, dùng giá trị mặc định.");
-                    if (idxDonVi === -1) console.warn("Không tìm thấy cột Cơ quan chủ trì, dùng giá trị mặc định.");
-                    if (idxHan === -1) console.warn("Không tìm thấy cột Hạn giao, dùng giá trị mặc định.");
-
-                    const newTasks = [];
+                    // Lấy header từ dòng đầu tiên
+                    const headers = rows[0].map(h => (h || "").toString().trim());
+                    
+                    // Tạo mảng các đối tượng row
+                    const newRows = [];
                     for (let i = 1; i < rows.length; i++) {
-                        const row = rows[i];
-                        if (!row || row.length === 0) continue;
-                        const task = {
-                            id: utils.generateId(),
-                            mainKey: state.currentMainKey,
-                            submenu: state.currentSubName,
-                            noiDung: (idxNoiDung !== -1 ? row[idxNoiDung] : "") || "N/A",
-                            donVi: (idxDonVi !== -1 ? row[idxDonVi] : "") || "N/A",
-                            phoiHop: (idxPhoiHop !== -1 ? row[idxPhoiHop] : "") || "",
-                            han: (idxHan !== -1 ? row[idxHan] : "") || "---",
-                            tienDo: (idxTienDo !== -1 ? row[idxTienDo] : "") || CONFIG.progressOptions[0]
-                        };
-                        // Đảm bảo tiến độ hợp lệ
-                        if (!CONFIG.progressOptions.includes(task.tienDo)) {
-                            task.tienDo = CONFIG.progressOptions[0];
-                        }
-                        newTasks.push(task);
+                        const rowData = rows[i];
+                        if (!rowData || rowData.length === 0) continue;
+                        
+                        const rowObj = { _id: utils.generateId() };
+                        headers.forEach((header, idx) => {
+                            rowObj[header] = (rowData[idx] !== undefined ? rowData[idx] : "").toString().trim();
+                        });
+                        newRows.push(rowObj);
                     }
 
-                    if (newTasks.length > 0) {
-                        // Xóa các task cũ của submenu này (nếu muốn thay thế) hoặc thêm vào?
-                        // Ở đây ta sẽ thêm vào, giữ lại dữ liệu cũ. Có thể thay đổi tùy ý.
-                        // Để tránh trùng lặp, ta có thể xóa các task của submenu hiện tại trước khi thêm mới.
-                        // Tạm thời sẽ xóa cũ và thêm mới (hành động upload thay thế).
-                        state.tasks = state.tasks.filter(t => !(t.mainKey === state.currentMainKey && t.submenu === state.currentSubName));
-                        state.tasks.push(...newTasks);
+                    if (newRows.length > 0) {
+                        // Lưu vào menu con hiện tại
+                        if (!tasks[currentMainKey]) tasks[currentMainKey] = {};
+                        tasks[currentMainKey][currentSubName] = {
+                            headers: headers,
+                            rows: newRows
+                        };
+                        
+                        alert(`Đã nạp ${newRows.length} dòng dữ liệu vào menu con "${currentSubName}".`);
+                        console.log(`Headers:`, headers);
+                        console.log(`Dữ liệu mẫu:`, newRows.slice(0, 3));
 
-                        alert(`Đã nạp ${newTasks.length} dòng dữ liệu vào submenu "${state.currentSubName}".`);
-                        console.log("5 dòng đầu tiên:", newTasks.slice(0, 5));
+                        render.all();
                     } else {
                         alert("Không có dữ liệu hợp lệ để nạp.");
                     }
-
-                    // Render lại
-                    render.all();
                 };
                 reader.readAsArrayBuffer(file);
-                event.target.value = ''; // reset input
+                event.target.value = '';
             }
         };
-
-        // ==================== TẠO DỮ LIỆU MẪU ====================
-        function generateMockData(mainKey) {
-            const cfg = CONFIG.menu[mainKey];
-            if (!cfg) return;
-            const mock = [];
-            const today = new Date();
-            const pastDate = new Date(today);
-            pastDate.setDate(today.getDate() - 10);
-            const futureDate = new Date(today);
-            futureDate.setDate(today.getDate() + 30);
-
-            cfg.subs.forEach((sub, idx) => {
-                for (let i = 1; i <= 2; i++) {
-                    let deadline = (idx % 2 === 0 && i === 1) ? pastDate : futureDate;
-                    mock.push({
-                        id: utils.generateId(),
-                        mainKey: mainKey,
-                        submenu: sub,
-                        noiDung: `[Mẫu] Nhiệm vụ ${i} của ${sub}`,
-                        donVi: `Đơn vị ${sub}`,
-                        phoiHop: `Phối hợp ${i}`,
-                        han: utils.formatDate(deadline),
-                        tienDo: (idx === 2 && i === 2) ? "Đã hoàn thành" : CONFIG.progressOptions[0]
-                    });
-                }
-            });
-            // Thêm vào tasks, giữ lại dữ liệu cũ của các nhóm khác
-            state.tasks = state.tasks.filter(t => t.mainKey !== mainKey);
-            state.tasks.push(...mock);
-        }
 
         // ==================== GÁN RA GLOBAL ====================
         window.App = {
@@ -578,7 +541,7 @@
         // ==================== KHỞI TẠO ====================
         function init() {
             render.mainMenu();
-            handlers.selectMain("UBND tỉnh"); // mặc định chọn menu "UBND tỉnh" cho dễ test với file mẫu
+            handlers.selectMain("Sở");
             document.getElementById('excelInput').addEventListener('change', handlers.handleExcelUpload);
         }
 
