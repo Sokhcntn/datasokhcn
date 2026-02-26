@@ -10,10 +10,10 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; overflow: hidden; }
-        .dashboard-height { height: 28vh; }
+        .dashboard-height { height: 32vh; } /* tăng lên 32vh để thoáng hơn */
         .sidebar-width { width: 16vw; }
         .submenu-height { height: 8vh; }
-        .content-height { height: 64vh; }
+        .content-height { height: 60vh; } /* giảm tương ứng */
         .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -27,10 +27,19 @@
             letter-spacing: 0.05em;
         }
         .stat-card-main {
-            @apply flex flex-col items-center justify-center px-6 border-r border-slate-700 last:border-0;
+            @apply flex flex-col items-center justify-center px-4 border-r border-slate-700 last:border-0;
         }
         .stat-card-sub {
-            @apply flex flex-col items-center justify-center px-6 border-r border-blue-200 last:border-0;
+            @apply flex flex-col items-center justify-center px-3 border-r border-blue-200 last:border-0;
+        }
+        .stat-number-main {
+            @apply text-2xl font-black; /* giảm từ text-3xl */
+        }
+        .stat-number-sub {
+            @apply text-xl font-black; /* giảm từ text-3xl/text-2xl */
+        }
+        .stat-label {
+            @apply text-[9px] font-bold uppercase tracking-tighter whitespace-nowrap;
         }
     </style>
 </head>
@@ -50,7 +59,7 @@
     <div class="p-4 border-t border-slate-800 space-y-2">
         <label class="flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 p-3 rounded-xl transition text-[11px] font-bold justify-center uppercase shadow-lg shadow-blue-900/20">
             <i data-lucide="file-up" class="w-4 h-4"></i>
-            Nạp Excel
+            Nhập từ Excel
             <input type="file" id="excelInput" class="hidden" accept=".xlsx, .xls">
         </label>
         
@@ -61,7 +70,7 @@
         
         <label class="flex items-center gap-2 cursor-pointer bg-amber-600 hover:bg-amber-700 p-3 rounded-xl transition text-[11px] font-bold justify-center uppercase shadow-lg">
             <i data-lucide="upload" class="w-4 h-4"></i>
-            Nhập dữ liệu
+            Nhập từ JSON
             <input type="file" id="importInput" class="hidden" accept=".json">
         </label>
         
@@ -75,35 +84,35 @@
 <!-- RIGHT SECTION -->
 <div class="flex-1 flex flex-col overflow-hidden">
 
-    <!-- DASHBOARD (2 DÒNG) -->
+    <!-- DASHBOARD (2 DÒNG) với khoảng cách thoáng hơn -->
     <header class="dashboard-height flex flex-col shadow-sm z-30">
         <!-- Dòng trên: thống kê toàn hệ thống -->
-        <div class="h-1/2 bg-slate-800 text-white flex items-center px-10 gap-8">
+        <div class="h-1/2 bg-slate-800 text-white flex items-center px-6 gap-4">
             <div class="flex-1">
                 <p class="text-blue-400 font-bold text-[10px] uppercase tracking-widest mb-1">Tổng quan toàn bộ hệ thống</p>
                 <h2 id="dashboardTitle" class="text-2xl font-black leading-none uppercase tracking-tighter italic text-blue-100"></h2>
             </div>
-            <div class="flex items-center h-full py-4">
+            <div class="flex items-center h-full py-3">
                 <div class="stat-card-main">
-                    <div id="stat-total" class="text-3xl font-black">0</div>
-                    <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Tổng nhiệm vụ</div>
+                    <div id="stat-total" class="stat-number-main">0</div>
+                    <div class="stat-label text-slate-400">Tổng nhiệm vụ</div>
                 </div>
                 <div class="stat-card-main">
-                    <div id="stat-pending" class="text-3xl font-black text-amber-400">0</div>
-                    <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Đang thực hiện</div>
+                    <div id="stat-pending" class="stat-number-main text-amber-400">0</div>
+                    <div class="stat-label text-slate-400">Đang thực hiện</div>
                 </div>
                 <div class="stat-card-main">
-                    <div id="stat-overdue" class="text-3xl font-black text-rose-500">0</div>
-                    <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Quá hạn</div>
+                    <div id="stat-overdue" class="stat-number-main text-rose-500">0</div>
+                    <div class="stat-label text-slate-400">Quá hạn</div>
                 </div>
                 <div class="stat-card-main border-0">
-                    <div id="stat-done" class="text-3xl font-black text-emerald-400">0</div>
-                    <div class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Đã hoàn thành</div>
+                    <div id="stat-done" class="stat-number-main text-emerald-400">0</div>
+                    <div class="stat-label text-slate-400">Đã hoàn thành</div>
                 </div>
             </div>
         </div>
         <!-- Dòng dưới: thống kê cho mục con đang chọn -->
-        <div class="h-1/2 bg-blue-600 text-white flex items-center px-10 gap-8 shadow-inner">
+        <div class="h-1/2 bg-blue-600 text-white flex items-center px-6 gap-4 shadow-inner">
             <div class="flex-1 flex flex-col">
                 <div class="flex items-center gap-2">
                     <i data-lucide="layers" class="w-4 h-4 opacity-70"></i>
@@ -111,18 +120,18 @@
                 </div>
                 <p class="text-[10px] font-medium text-blue-200 uppercase opacity-80 mt-1">Trạng thái mục đang chọn</p>
             </div>
-            <div class="flex items-center h-full py-4">
+            <div class="flex items-center h-full py-3">
                 <div class="stat-card-sub">
-                    <div id="stat-sub-total" class="text-3xl font-black">0</div>
-                    <div class="text-[9px] font-bold text-blue-100 uppercase tracking-tighter">Số lượng mục này</div>
+                    <div id="stat-sub-total" class="stat-number-sub">0</div>
+                    <div class="stat-label text-blue-100">Số lượng mục này</div>
                 </div>
                 <div class="stat-card-sub">
-                    <div id="stat-sub-pending" class="text-2xl font-black">0</div>
-                    <div class="text-[9px] font-bold text-blue-100 uppercase tracking-tighter">Đang xử lý</div>
+                    <div id="stat-sub-pending" class="stat-number-sub">0</div>
+                    <div class="stat-label text-blue-100">Đang xử lý</div>
                 </div>
                 <div class="stat-card-sub border-0">
-                    <div id="stat-sub-done" class="text-2xl font-black text-blue-200">0</div>
-                    <div class="text-[9px] font-bold text-blue-100 uppercase tracking-tighter">Hoàn thành</div>
+                    <div id="stat-sub-done" class="stat-number-sub text-blue-200">0</div>
+                    <div class="stat-label text-blue-100">Hoàn thành</div>
                 </div>
             </div>
         </div>
