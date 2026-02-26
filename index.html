@@ -45,12 +45,30 @@
         <div class="px-6 mb-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest italic text-center">Nhóm nhiệm vụ chính</div>
         <ul id="mainMenu" class="space-y-1 px-3"></ul>
     </nav>
-    <div class="p-4 border-t border-slate-800 bg-slate-950/50">
+    
+    <!-- Các nút chức năng ở sidebar -->
+    <div class="p-4 border-t border-slate-800 space-y-2">
         <label class="flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 p-3 rounded-xl transition text-[11px] font-bold justify-center uppercase shadow-lg shadow-blue-900/20">
             <i data-lucide="file-up" class="w-4 h-4"></i>
-            Nạp dữ liệu Excel (vào menu con hiện tại)
+            Nạp Excel
             <input type="file" id="excelInput" class="hidden" accept=".xlsx, .xls">
         </label>
+        
+        <button id="exportBtn" class="w-full flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 p-3 rounded-xl transition text-[11px] font-bold justify-center uppercase shadow-lg">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            Xuất dữ liệu
+        </button>
+        
+        <label class="flex items-center gap-2 cursor-pointer bg-amber-600 hover:bg-amber-700 p-3 rounded-xl transition text-[11px] font-bold justify-center uppercase shadow-lg">
+            <i data-lucide="upload" class="w-4 h-4"></i>
+            Nhập dữ liệu
+            <input type="file" id="importInput" class="hidden" accept=".json">
+        </label>
+        
+        <button id="clearBtn" class="w-full flex items-center gap-2 bg-rose-600 hover:bg-rose-700 p-3 rounded-xl transition text-[11px] font-bold justify-center uppercase shadow-lg">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+            Xóa tất cả
+        </button>
     </div>
 </aside>
 
@@ -135,6 +153,7 @@
 <script>
     (function() {
         // ==================== CẤU HÌNH & HẰNG SỐ ====================
+        const STORAGE_KEY = 'taskManagementData';
         const CONFIG = {
             menu: {
                 "Sở": {
@@ -163,8 +182,7 @@
         };
 
         // ==================== STATE ====================
-        // tasks: { mainKey: { subName: { headers: [...], rows: [ {...}, ... ] } } }
-        let tasks = {};
+        let tasks = {}; // { mainKey: { subName: { headers: [...], rows: [ {...}, ... ] } } }
         let currentMainKey = "Sở";
         let currentSubName = "TẤT CẢ";
 
@@ -217,6 +235,27 @@
                 return -1;
             }
         };
+
+        // ==================== LƯU & TẢI LOCALSTORAGE ====================
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+            } catch (e) {
+                console.error('Không thể lưu dữ liệu:', e);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    tasks = JSON.parse(saved);
+                }
+            } catch (e) {
+                console.error('Không thể tải dữ liệu:', e);
+                tasks = {};
+            }
+        }
 
         // ==================== HÀM LẤY DỮ LIỆU ====================
         function getDataForMain(mainKey) {
@@ -458,6 +497,7 @@
                 const row = data.rows.find(r => r._id === rowId);
                 if (row && data.headers[colIndex]) {
                     row[data.headers[colIndex]] = newValue;
+                    saveToLocalStorage();
                     render.all();
                 }
             },
@@ -499,6 +539,7 @@
                             rows: newRows
                         };
                         
+                        saveToLocalStorage();
                         alert(`Đã nạp ${newRows.length} dòng dữ liệu vào menu con "${currentSubName}".`);
                         console.log(`Headers:`, headers);
                         console.log(`Dữ liệu mẫu:`, newRows.slice(0, 3));
@@ -510,6 +551,52 @@
                 };
                 reader.readAsArrayBuffer(file);
                 event.target.value = '';
+            },
+
+            exportData: () => {
+                const dataStr = JSON.stringify(tasks, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `task_backup_${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            },
+
+            importData: (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const imported = JSON.parse(e.target.result);
+                        // Validate cơ bản
+                        if (typeof imported === 'object' && imported !== null) {
+                            tasks = imported;
+                            saveToLocalStorage();
+                            // Sau khi import, chuyển về menu hiện tại và render lại
+                            render.subMenu();
+                            render.all();
+                            alert('Import dữ liệu thành công!');
+                        } else {
+                            alert('File JSON không hợp lệ.');
+                        }
+                    } catch (err) {
+                        alert('Lỗi đọc file JSON: ' + err.message);
+                    }
+                };
+                reader.readAsText(file);
+                event.target.value = '';
+            },
+
+            clearAllData: () => {
+                if (confirm('Bạn có chắc muốn xóa toàn bộ dữ liệu?')) {
+                    tasks = {};
+                    saveToLocalStorage();
+                    render.subMenu();
+                    render.all();
+                }
             }
         };
 
@@ -519,10 +606,19 @@
             updateRow: handlers.updateRow
         };
 
+        // ==================== KHỞI TẠO ====================
         function init() {
+            // Tải dữ liệu từ localStorage
+            loadFromLocalStorage();
+            
             render.mainMenu();
             handlers.selectMain("Sở");
+            
+            // Gán sự kiện cho các nút
             document.getElementById('excelInput').addEventListener('change', handlers.handleExcelUpload);
+            document.getElementById('exportBtn').addEventListener('click', handlers.exportData);
+            document.getElementById('importInput').addEventListener('change', handlers.importData);
+            document.getElementById('clearBtn').addEventListener('click', handlers.clearAllData);
         }
 
         init();
