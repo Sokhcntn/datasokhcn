@@ -1,637 +1,1700 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ thống Quản trị Nhiệm vụ Chiến lược</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-        body { font-family: 'Inter', sans-serif; overflow: hidden; }
-        .dashboard-height { height: 32vh; } /* tăng lên 32vh để thoáng hơn */
-        .sidebar-width { width: 16vw; }
-        .submenu-height { height: 8vh; }
-        .content-height { height: 60vh; } /* giảm tương ứng */
-        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        .status-badge {
-            font-size: 10px;
-            font-weight: 800;
-            padding: 2px 8px;
-            border-radius: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .stat-card-main {
-            @apply flex flex-col items-center justify-center px-4 border-r border-slate-700 last:border-0;
-        }
-        .stat-card-sub {
-            @apply flex flex-col items-center justify-center px-3 border-r border-blue-200 last:border-0;
-        }
-        .stat-number-main {
-            @apply text-2xl font-black; /* giảm từ text-3xl */
-        }
-        .stat-number-sub {
-            @apply text-xl font-black; /* giảm từ text-3xl/text-2xl */
-        }
-        .stat-label {
-            @apply text-[9px] font-bold uppercase tracking-tighter whitespace-nowrap;
-        }
-    </style>
-</head>
-<body class="bg-slate-50 text-slate-900 flex">
+import React, { useState, useMemo } from 'react';
 
-<!-- SIDEBAR -->
-<aside class="sidebar-width h-screen bg-slate-900 text-white flex flex-col shadow-2xl z-50">
-    <div class="p-6 border-b border-slate-800">
-        <h1 class="text-xl font-black tracking-tighter text-blue-400 text-center uppercase">Quản lý nhiệm vụ</h1>
-    </div>
-    <nav class="flex-1 mt-6">
-        <div class="px-6 mb-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest italic text-center">Nhóm nhiệm vụ chính</div>
-        <ul id="mainMenu" class="space-y-1 px-3"></ul>
-    </nav>
-    
-    <!-- Các nút chức năng ở sidebar -->
-    <div class="p-4 border-t border-slate-800 space-y-2">
-        <label class="flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 p-3 rounded-xl transition text-[11px] font-bold justify-center uppercase shadow-lg shadow-blue-900/20">
-            <i data-lucide="file-up" class="w-4 h-4"></i>
-            Nhập từ Excel
-            <input type="file" id="excelInput" class="hidden" accept=".xlsx, .xls">
-        </label>
-        
-        <button id="exportBtn" class="w-full flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 p-3 rounded-xl transition text-[11px] font-bold justify-center uppercase shadow-lg">
-            <i data-lucide="download" class="w-4 h-4"></i>
-            Xuất dữ liệu
-        </button>
-        
-        <label class="flex items-center gap-2 cursor-pointer bg-amber-600 hover:bg-amber-700 p-3 rounded-xl transition text-[11px] font-bold justify-center uppercase shadow-lg">
-            <i data-lucide="upload" class="w-4 h-4"></i>
-            Nhập từ JSON
-            <input type="file" id="importInput" class="hidden" accept=".json">
-        </label>
-        
-        <button id="clearBtn" class="w-full flex items-center gap-2 bg-rose-600 hover:bg-rose-700 p-3 rounded-xl transition text-[11px] font-bold justify-center uppercase shadow-lg">
-            <i data-lucide="trash-2" class="w-4 h-4"></i>
-            Xóa tất cả
-        </button>
-    </div>
-</aside>
+// ==========================================
+// THIẾT LẬP DỮ LIỆU BAN ĐẦU THEO QUYẾT ĐỊNH 5529
+// ==========================================
 
-<!-- RIGHT SECTION -->
-<div class="flex-1 flex flex-col overflow-hidden">
+const DEPARTMENTS_CRITERIA_TEMPLATE = [
+  {
+    id: "pillar_1",
+    name: "I. Hạ tầng và Nền tảng số",
+    maxScore: 80,
+    items: [
+      {
+        id: "dep_1_1",
+        code: "1.1",
+        title: "Trang bị máy tính cho CBCCVC",
+        desc: "Công thức: a/b * Điểm tối đa (a: Số máy tính, b: Số CBCCVC)",
+        maxScore: 40,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số máy tính được trang bị (a)", val: 45, placeholder: "Nhập số máy" },
+          b: { label: "Tổng số CBCCVC (b)", val: 50, placeholder: "Nhập số người" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(40, Math.round((a / b) * 40 * 10) / 10);
+        }
+      },
+      {
+        id: "dep_1_2",
+        code: "1.2",
+        title: "Mức độ ứng dụng Trí tuệ nhân tạo (AI)",
+        desc: "Tích hợp AI phục vụ công việc và người dân",
+        maxScore: 40,
+        type: "checkboxes",
+        options: [
+          { key: "ai_ccvc", label: "Có ứng dụng AI phục vụ CCVC (50% số điểm - 20đ)", score: 20, checked: true },
+          { key: "ai_citizen", label: "Có ứng dụng AI phục vụ người dân, doanh nghiệp (25% số điểm - 10đ)", score: 10, checked: false },
+          { key: "ai_advanced", label: "Có ứng dụng AI nâng cao khác (25% số điểm - 10đ)", score: 10, checked: false }
+        ],
+        calc: (options) => {
+          return options.reduce((sum, opt) => sum + (opt.checked ? opt.score : 0), 0);
+        }
+      }
+    ]
+  },
+  {
+    id: "pillar_2",
+    name: "II. Nhân lực số",
+    maxScore: 120,
+    items: [
+      {
+        id: "dep_2_1",
+        code: "2.1",
+        title: "Bố trí cán bộ chuyên trách/đầu mối chuyển đổi số",
+        desc: "Điểm tối đa nếu bố trí chuyên trách đúng chuyên môn; 50% nếu kiêm nhiệm; 0 điểm nếu không bố trí",
+        maxScore: 30,
+        type: "select",
+        options: [
+          { val: "chuyen_trach", label: "Chuyên trách có trình độ CNTT (30đ)", score: 30 },
+          { val: "kiem_nhiem", label: "Kiêm nhiệm có trình độ CNTT (15đ)", score: 15 },
+          { val: "khong_co", label: "Không bố trí hoặc không có bằng CNTT (0đ)", score: 0 }
+        ],
+        val: "chuyen_trach",
+        calc: (val, opts) => {
+          const opt = opts.find(o => o.val === val);
+          return opt ? opt.score : 0;
+        }
+      },
+      {
+        id: "dep_2_2",
+        code: "2.2",
+        title: "Tỷ lệ công chức, viên chức chuyên trách về chuyển đổi số",
+        desc: "Tỷ lệ >= 10%: Điểm tối đa; Tỷ lệ < 10%: Tính theo tỷ lệ thực tế * Điểm tối đa",
+        maxScore: 30,
+        type: "ratio",
+        inputs: {
+          a: { label: "Tổng số CCVC chuyên trách về CĐS (a)", val: 5, placeholder: "Nhập số chuyên trách" },
+          b: { label: "Tổng số CCVC của đơn vị (b)", val: 50, placeholder: "Nhập tổng số CCVC" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          const ratio = a / b;
+          if (ratio >= 0.1) return 30;
+          return Math.round((ratio * 10 * 30) * 10) / 10;
+        }
+      },
+      {
+        id: "dep_2_3",
+        code: "2.3",
+        title: "Tỷ lệ công chức, viên chức được tập huấn về CĐS",
+        desc: "Công thức: (Số lượng được tập huấn / Tổng số CCVC) * Điểm tối đa",
+        maxScore: 40,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng CCVC được bồi dưỡng, tập huấn (a)", val: 42, placeholder: "Nhập số lượng" },
+          b: { label: "Tổng số CCVC của đơn vị (b)", val: 50, placeholder: "Nhập tổng số CCVC" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(40, Math.round((a / b) * 40 * 10) / 10);
+        }
+      },
+      {
+        id: "dep_2_4",
+        code: "2.4",
+        title: "Chứng chỉ quản trị dữ liệu cơ bản",
+        desc: "Tỷ lệ chuyên trách đạt chứng chỉ trên tổng số tham gia bồi dưỡng * Điểm tối đa",
+        maxScore: 20,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số chuyên trách có chứng chỉ quản trị dữ liệu cơ bản (a)", val: 3, placeholder: "Nhập số lượng" },
+          b: { label: "Tổng số chuyên trách tham gia tập huấn (b)", val: 5, placeholder: "Nhập tổng số tham gia" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(20, Math.round((a / b) * 20 * 10) / 10);
+        }
+      }
+    ]
+  },
+  {
+    id: "pillar_3",
+    name: "III. An toàn thông tin mạng",
+    maxScore: 200,
+    items: [
+      {
+        id: "dep_3_1",
+        code: "3.1",
+        title: "Phê duyệt cấp độ an toàn thông tin hệ thống chuyên ngành",
+        desc: "a: HTTT được phê duyệt cấp độ, b: Tổng số HTTT tự vận hành. Nếu không tự quản lý HTTT riêng -> Điểm tối đa",
+        maxScore: 40,
+        type: "ratio_or_max",
+        hasNoSystem: false,
+        inputs: {
+          a: { label: "Số HTTT chuyên ngành đã được phê duyệt cấp độ (a)", val: 2, placeholder: "Nhập số HT" },
+          b: { label: "Tổng số HTTT chuyên ngành tự vận hành riêng (b)", val: 2, placeholder: "Nhập tổng số HT" }
+        },
+        calc: (a, b, hasNoSystem) => {
+          if (hasNoSystem) return 40;
+          if (!b || b <= 0) return 40; // Mặc định nếu không ghi nhận hệ thống
+          return Math.min(40, Math.round((a / b) * 40 * 10) / 10);
+        }
+      },
+      {
+        id: "dep_3_2",
+        code: "3.2",
+        title: "Hệ thống thông tin được kiểm tra, đánh giá ATTT định kỳ",
+        desc: "Nếu không tự vận hành hệ thống riêng -> Đạt điểm tối đa",
+        maxScore: 30,
+        type: "ratio_or_max",
+        hasNoSystem: false,
+        inputs: {
+          a: { label: "Số HTTT được kiểm tra an toàn thông tin định kỳ (a)", val: 2, placeholder: "Nhập số HT" },
+          b: { label: "Tổng số HTTT chuyên ngành tự vận hành riêng (b)", val: 2, placeholder: "Nhập tổng số HT" }
+        },
+        calc: (a, b, hasNoSystem) => {
+          if (hasNoSystem) return 30;
+          if (!b || b <= 0) return 30;
+          return Math.min(30, Math.round((a / b) * 30 * 10) / 10);
+        }
+      },
+      {
+        id: "dep_3_3",
+        code: "3.3",
+        title: "Tham gia các lớp diễn tập ứng cứu sự cố ATTT",
+        desc: "Đầy đủ: 30đ; Không đầy đủ / Không tham gia: 0đ (Nếu tỉnh không tổ chức: Đạt điểm tối đa)",
+        maxScore: 30,
+        type: "select",
+        options: [
+          { val: "day_du", label: "Tham gia đầy đủ / Tỉnh không tổ chức (30đ)", score: 30 },
+          { val: "khong_day_du", label: "Không tham gia hoặc không đầy đủ (0đ)", score: 0 }
+        ],
+        val: "day_du",
+        calc: (val, opts) => {
+          const opt = opts.find(o => o.val === val);
+          return opt ? opt.score : 0;
+        }
+      },
+      {
+        id: "dep_3_4",
+        code: "3.4",
+        title: "Tham gia đầy đủ các khóa tập huấn, bồi dưỡng về ATTT của tỉnh",
+        desc: "Đầy đủ: 30đ; Không tham gia: 0đ",
+        maxScore: 30,
+        type: "select",
+        options: [
+          { val: "day_du", label: "Tham gia đầy đủ / Tỉnh không tổ chức (30đ)", score: 30 },
+          { val: "khong_day_du", label: "Không tham gia đầy đủ (0đ)", score: 0 }
+        ],
+        val: "day_du",
+        calc: (val, opts) => {
+          const opt = opts.find(o => o.val === val);
+          return opt ? opt.score : 0;
+        }
+      },
+      {
+        id: "dep_3_5",
+        code: "3.5",
+        title: "Triển khai đầy đủ phương án bảo đảm an toàn thông tin theo cấp độ",
+        desc: "Nếu không tự vận hành hệ thống riêng -> Đạt điểm tối đa",
+        maxScore: 40,
+        type: "ratio_or_max",
+        hasNoSystem: false,
+        inputs: {
+          a: { label: "Số HTTT triển khai phương án an toàn đầy đủ (a)", val: 2, placeholder: "Nhập số HT" },
+          b: { label: "Tổng số HTTT đã được phê duyệt cấp độ (b)", val: 2, placeholder: "Nhập tổng HT" }
+        },
+        calc: (a, b, hasNoSystem) => {
+          if (hasNoSystem) return 40;
+          if (!b || b <= 0) return 40;
+          return Math.min(40, Math.round((a / b) * 40 * 10) / 10);
+        }
+      },
+      {
+        id: "dep_3_6",
+        code: "3.6",
+        title: "Tỷ lệ máy tính được cài đặt phần mềm phòng chống mã độc tập trung",
+        desc: "Công thức: a/b * Điểm tối đa (a: Số máy đã cài đặt, b: Tổng số máy)",
+        maxScore: 30,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số máy tính đã cài đặt phần mềm phòng chống mã độc (a)", val: 48, placeholder: "Nhập số máy" },
+          b: { label: "Tổng số máy tính của đơn vị (b)", val: 50, placeholder: "Nhập tổng số máy" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(30, Math.round((a / b) * 30 * 10) / 10);
+        }
+      }
+    ]
+  },
+  {
+    id: "pillar_4",
+    name: "IV. Hoạt động Chính quyền số",
+    maxScore: 600,
+    items: [
+      {
+        id: "dep_4_1",
+        code: "4.1",
+        title: "Trang thông tin điện tử đáp ứng tiêu chuẩn theo Nghị định 42/2022/NĐ-CP",
+        desc: "a: Số nhóm thông tin bắt buộc cung cấp đầy đủ, b: Tổng số nhóm bắt buộc theo quy định",
+        maxScore: 40,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số nhóm nội dung thông tin được đăng tải đầy đủ (a)", val: 18, placeholder: "Nhập số nhóm" },
+          b: { label: "Tổng số nhóm thông tin bắt buộc phải cung cấp (b)", val: 18, placeholder: "Nhập tổng nhóm" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(40, Math.round((a / b) * 40 * 10) / 10);
+        }
+      },
+      {
+        id: "dep_4_2",
+        code: "4.2",
+        title: "Tỷ lệ công chức sử dụng phần mềm quản lý văn bản điều hành",
+        desc: "Công thức: a/b * Điểm tối đa",
+        maxScore: 30,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số tài khoản thực tế có sử dụng thường xuyên (a)", val: 50, placeholder: "Nhập số" },
+          b: { label: "Tổng số tài khoản được cấp (b)", val: 50, placeholder: "Nhập tổng" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(30, Math.round((a / b) * 30 * 10) / 10);
+        }
+      },
+      {
+        id: "dep_4_3",
+        code: "4.3",
+        title: "Tỷ lệ văn bản điện tử được ký số (trừ văn bản mật)",
+        desc: "Công thức: a/b * Điểm tối đa",
+        maxScore: 40,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng văn bản đi được ký số (a)", val: 245, placeholder: "Nhập số" },
+          b: { label: "Tổng số văn bản đi phát hành (b)", val: 250, placeholder: "Nhập tổng" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(40, Math.round((a / b) * 40 * 10) / 10);
+        }
+      },
+      {
+        id: "dep_4_6",
+        code: "4.6",
+        title: "Triển khai nền tảng họp không giấy",
+        desc: "Nếu Tỷ lệ (Giấy mời điện tử/Tổng giấy mời) <= 80%: 0 điểm. Nếu > 80%: (a/b) * Điểm tối đa",
+        maxScore: 40,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng giấy mời đưa lên hệ thống họp không giấy (a)", val: 45, placeholder: "Nhập số giấy mời số" },
+          b: { label: "Tổng số giấy mời phát hành của đơn vị (b)", val: 50, placeholder: "Nhập tổng số giấy mời" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          const ratio = a / b;
+          if (ratio <= 0.8) return 0;
+          return Math.min(40, Math.round(ratio * 40 * 10) / 10);
+        }
+      },
+      {
+        id: "dep_4_7",
+        code: "4.7",
+        title: "Tỷ lệ cung cấp dịch vụ công trực tuyến toàn trình",
+        desc: "Công thức: a/b * Điểm tối đa (a: Số dịch vụ trực tuyến toàn trình, b: Tổng thủ tục đủ điều kiện)",
+        maxScore: 40,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng TTHC cung cấp trực tuyến toàn trình (a)", val: 38, placeholder: "Nhập số TTHC" },
+          b: { label: "Tổng số TTHC của sở ngành quản lý đủ điều kiện (b)", val: 40, placeholder: "Nhập tổng TTHC" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(40, Math.round((a / b) * 40 * 10) / 10);
+        }
+      },
+      {
+        id: "dep_4_8",
+        code: "4.8",
+        title: "Tỷ lệ hồ sơ thủ tục hành chính giải quyết đúng hạn",
+        desc: "Công thức: a/b * Điểm tối đa (Các cơ quan đặc thù không tiếp nhận hồ sơ hành chính đạt điểm tối đa)",
+        maxScore: 40,
+        type: "ratio_or_max",
+        hasNoSystem: false,
+        inputs: {
+          a: { label: "Số lượng hồ sơ đã giải quyết đúng hoặc trước hạn (a)", val: 120, placeholder: "Nhập số hồ sơ" },
+          b: { label: "Tổng số hồ sơ tiếp nhận giải quyết (b)", val: 120, placeholder: "Nhập tổng hồ sơ" }
+        },
+        calc: (a, b, hasNoSystem) => {
+          if (hasNoSystem) return 40;
+          if (!b || b <= 0) return 40;
+          return Math.min(40, Math.round((a / b) * 40 * 10) / 10);
+        }
+      },
+      {
+        id: "dep_4_9",
+        code: "4.9",
+        title: "Tỷ lệ sử dụng dịch vụ công trực tuyến của người dân và doanh nghiệp",
+        desc: "Nếu Tỷ lệ >= 80%: đạt tối đa 50đ. Nếu Tỷ lệ < 80%: (Tỷ lệ / 0.8) * Điểm tối đa",
+        maxScore: 50,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng hồ sơ tiếp nhận trực tuyến (a)", val: 85, placeholder: "Nhập hồ sơ trực tuyến" },
+          b: { label: "Tổng số hồ sơ giải quyết TTHC trong năm (b)", val: 100, placeholder: "Nhập tổng số hồ sơ" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          const ratio = a / b;
+          if (ratio >= 0.8) return 50;
+          return Math.round((ratio / 0.8) * 50 * 10) / 10;
+        }
+      },
+      {
+        id: "dep_4_10",
+        code: "4.10",
+        title: "Tỷ lệ hồ sơ trực tuyến toàn trình được xử lý hoàn toàn trực tuyến",
+        desc: "Nếu Tỷ lệ >= 80%: đạt tối đa 50đ. Nếu Tỷ lệ < 80%: (Tỷ lệ / 0.8) * Điểm tối đa",
+        maxScore: 50,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số hồ sơ trực tuyến xử lý hoàn toàn trên môi trường số (a)", val: 78, placeholder: "Nhập số" },
+          b: { label: "Tổng số hồ sơ trực tuyến được tiếp nhận (b)", val: 100, placeholder: "Nhập tổng số" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          const ratio = a / b;
+          if (ratio >= 0.8) return 50;
+          return Math.round((ratio / 0.8) * 50 * 10) / 10;
+        }
+      },
+      {
+        id: "dep_4_12",
+        code: "4.12",
+        title: "Tỷ lệ ngân sách nhà nước chi cho Chuyển đổi số",
+        desc: "Công thức: (Chi đầu tư + Chi thường xuyên CĐS) / Tổng chi ngân sách. Nếu tỷ lệ >= 1%: tối đa 30đ. Ngược lại tính tỷ lệ/1%",
+        maxScore: 30,
+        type: "ratio",
+        inputs: {
+          a: { label: "Kinh phí thực chi cho Chuyển đổi số (triệu đồng) (a)", val: 450, placeholder: "Nhập số tiền" },
+          b: { label: "Tổng chi ngân sách nhà nước được giao (triệu đồng) (b)", val: 38000, placeholder: "Nhập tổng chi" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          const ratio = a / b;
+          if (ratio >= 0.01) return 30;
+          return Math.round((ratio / 0.01) * 30 * 10) / 10;
+        }
+      },
+      {
+        id: "dep_4_15",
+        code: "4.15",
+        title: "Thực hiện cung cấp dữ liệu mở trên cổng dữ liệu mở tỉnh",
+        desc: "Thực hiện cung cấp dữ liệu mở tại địa chỉ: data.tayninh.gov.vn",
+        maxScore: 40,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số tập dữ liệu mở thực tế đã cung cấp (a)", val: 5, placeholder: "Nhập số" },
+          b: { label: "Tổng số danh mục dữ liệu mở bắt buộc phải cung cấp (b)", val: 5, placeholder: "Nhập tổng" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(40, Math.round((a / b) * 40 * 10) / 10);
+        }
+      },
+      {
+        // 4.19.1 & 4.19.2: Triển khai thực hiện nhiệm vụ được giao
+        id: "dep_4_19",
+        code: "4.19",
+        title: "Kết quả triển khai các nhiệm vụ chuyển đổi số và báo cáo tiến độ",
+        desc: "Có chế tài giảm điểm: Điểm tối đa: Đầy đủ và đúng hạn. Trễ báo cáo: Bị trừ 0.25đ / lần báo cáo trễ.",
+        maxScore: 200,
+        type: "task_reporting",
+        inputs: {
+          status: "completed_on_time", // 'completed_on_time', 'completed_late', 'not_completed'
+          lateReportsCount: 2 // bị trừ điểm
+        },
+        calc: (status, lateReportsCount) => {
+          let base = 200;
+          if (status === "not_completed") return 0;
+          if (status === "completed_no_report") base = 100;
+          const penalty = Math.min(base, lateReportsCount * 15); // Giảm mạnh 15đ mỗi lần báo cáo trễ để cán bộ lưu ý kỷ luật số
+          return Math.max(0, base - penalty);
+        }
+      }
+    ]
+  }
+];
 
-    <!-- DASHBOARD (2 DÒNG) với khoảng cách thoáng hơn -->
-    <header class="dashboard-height flex flex-col shadow-sm z-30">
-        <!-- Dòng trên: thống kê toàn hệ thống -->
-        <div class="h-1/2 bg-slate-800 text-white flex items-center px-6 gap-4">
-            <div class="flex-1">
-                <p class="text-blue-400 font-bold text-[10px] uppercase tracking-widest mb-1">Tổng quan toàn bộ hệ thống</p>
-                <h2 id="dashboardTitle" class="text-2xl font-black leading-none uppercase tracking-tighter italic text-blue-100"></h2>
-            </div>
-            <div class="flex items-center h-full py-3">
-                <div class="stat-card-main">
-                    <div id="stat-total" class="stat-number-main">0</div>
-                    <div class="stat-label text-slate-400">Tổng nhiệm vụ</div>
-                </div>
-                <div class="stat-card-main">
-                    <div id="stat-pending" class="stat-number-main text-amber-400">0</div>
-                    <div class="stat-label text-slate-400">Đang thực hiện</div>
-                </div>
-                <div class="stat-card-main">
-                    <div id="stat-overdue" class="stat-number-main text-rose-500">0</div>
-                    <div class="stat-label text-slate-400">Quá hạn</div>
-                </div>
-                <div class="stat-card-main border-0">
-                    <div id="stat-done" class="stat-number-main text-emerald-400">0</div>
-                    <div class="stat-label text-slate-400">Đã hoàn thành</div>
-                </div>
-            </div>
-        </div>
-        <!-- Dòng dưới: thống kê cho mục con đang chọn -->
-        <div class="h-1/2 bg-blue-600 text-white flex items-center px-6 gap-4 shadow-inner">
-            <div class="flex-1 flex flex-col">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="layers" class="w-4 h-4 opacity-70"></i>
-                    <p id="currentSubLabel" class="text-xl font-bold italic tracking-tight">Đang xem tất cả</p>
-                </div>
-                <p class="text-[10px] font-medium text-blue-200 uppercase opacity-80 mt-1">Trạng thái mục đang chọn</p>
-            </div>
-            <div class="flex items-center h-full py-3">
-                <div class="stat-card-sub">
-                    <div id="stat-sub-total" class="stat-number-sub">0</div>
-                    <div class="stat-label text-blue-100">Số lượng mục này</div>
-                </div>
-                <div class="stat-card-sub">
-                    <div id="stat-sub-pending" class="stat-number-sub">0</div>
-                    <div class="stat-label text-blue-100">Đang xử lý</div>
-                </div>
-                <div class="stat-card-sub border-0">
-                    <div id="stat-sub-done" class="stat-number-sub text-blue-200">0</div>
-                    <div class="stat-label text-blue-100">Hoàn thành</div>
-                </div>
-            </div>
-        </div>
-    </header>
+const TOWNSHIPS_CRITERIA_TEMPLATE = [
+  {
+    id: "town_pillar_1",
+    name: "I. Hạ tầng và Nền tảng số",
+    maxScore: 80,
+    items: [
+      {
+        id: "town_1_1",
+        code: "1.1",
+        title: "Tỷ lệ người dùng có khả năng truy cập Internet tốc độ cao (>1Gb/s)",
+        desc: "Tải dữ liệu từ báo cáo của doanh nghiệp viễn thông đóng chân trên địa bàn",
+        maxScore: 10,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng người có khả năng truy cập mạng >1Gb/s (a)", val: 1200, placeholder: "Nhập số người" },
+          b: { label: "Tổng số người sử dụng mạng Internet cố định (b)", val: 5000, placeholder: "Nhập tổng số" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(10, Math.round((a / b) * 10 * 10) / 10);
+        }
+      },
+      {
+        id: "town_1_2",
+        code: "1.2",
+        title: "Tỷ lệ phủ sóng mạng di động 5G trên dân số xã/phường",
+        desc: "Công thức: (Số lượng dân được phủ sóng 5G / Tổng dân số) / 99% * Điểm tối đa",
+        maxScore: 10,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng người dân nằm trong vùng phủ sóng 5G (a)", val: 6500, placeholder: "Nhập số" },
+          b: { label: "Tổng dân số của toàn xã/phường (b)", val: 12000, placeholder: "Nhập tổng số" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          const ratio = a / b;
+          return Math.min(10, Math.round((ratio / 0.99) * 10 * 10) / 10);
+        }
+      },
+      {
+        id: "town_1_3",
+        code: "1.3",
+        title: "Tỷ lệ hộ gia đình có kết nối Internet cáp quang",
+        desc: "Công thức: a/b * Điểm tối đa (a: số hộ có cáp quang, b: tổng số hộ)",
+        maxScore: 10,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số hộ gia đình đã đăng ký lắp đặt cáp quang (a)", val: 2400, placeholder: "Nhập số hộ" },
+          b: { label: "Tổng số hộ gia đình toàn xã/phường (b)", val: 3200, placeholder: "Nhập tổng số hộ" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(10, Math.round((a / b) * 10 * 10) / 10);
+        }
+      },
+      {
+        id: "town_1_4",
+        code: "1.4",
+        title: "Mức độ ứng dụng Trí tuệ nhân tạo (AI)",
+        desc: "Có tích hợp giải pháp AI hỗ trợ trả lời ý kiến cử tri, chatbot công vụ hoặc phản ánh nhân dân",
+        maxScore: 20,
+        type: "checkboxes",
+        options: [
+          { key: "ai_ccvc", label: "Có ứng dụng AI phục vụ CCVC (50% điểm - 10đ)", score: 10, checked: true },
+          { key: "ai_citizen", label: "Có ứng dụng AI phục vụ người dân, DN (25% điểm - 5đ)", score: 5, checked: false },
+          { key: "ai_advanced", label: "Có ứng dụng AI nâng cao khác (25% điểm - 5đ)", score: 5, checked: false }
+        ],
+        calc: (options) => {
+          return options.reduce((sum, opt) => sum + (opt.checked ? opt.score : 0), 0);
+        }
+      },
+      {
+        id: "town_1_6",
+        code: "1.6",
+        title: "Triển khai Hệ thống camera giám sát an ninh trật tự",
+        desc: "Hệ thống kết nối thời gian thực về trụ sở công an để phòng ngừa tội phạm",
+        maxScore: 10,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số điểm trọng yếu đã được lắp đặt camera giám sát (a)", val: 12, placeholder: "Nhập số" },
+          b: { label: "Tổng số điểm trọng yếu theo quy hoạch rà soát của xã (b)", val: 15, placeholder: "Nhập tổng số" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(10, Math.round((a / b) * 10 * 10) / 10);
+        }
+      },
+      {
+        id: "town_1_7",
+        code: "1.7",
+        title: "Nội dung thông tin truyền thanh thực hiện trên nền tảng số",
+        desc: "Sử dụng đài truyền thanh thông minh IP thay thế hệ thống loa cũ",
+        maxScore: 20,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng chương trình phát thanh được quản lý trên nền tảng số (a)", val: 15, placeholder: "Nhập số" },
+          b: { label: "Tổng số chương trình phát thanh trong kỳ đánh giá (b)", val: 15, placeholder: "Nhập tổng số" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(20, Math.round((a / b) * 20 * 10) / 10);
+        }
+      }
+    ]
+  },
+  {
+    id: "town_pillar_2",
+    name: "II. Nhân lực số",
+    maxScore: 100,
+    items: [
+      {
+        id: "town_2_1",
+        code: "2.1",
+        title: "Nhân sự chịu trách nhiệm chuyển đổi số & an toàn thông tin",
+        desc: "Yêu cầu có chuyên môn sâu hoặc phân công đúng năng lực quản lý nhà nước",
+        maxScore: 30,
+        type: "select",
+        options: [
+          { val: "chuyen_trach", label: "Có phân công cán bộ đúng trình độ CNTT phụ trách chuyên trách (30đ)", score: 30 },
+          { val: "kiem_nhiem", label: "Phân công cán bộ kiêm nhiệm CNTT (15đ)", score: 15 },
+          { val: "khong_co", label: "Chưa bố trí đầu mối chịu trách nhiệm cụ thể (0đ)", score: 0 }
+        ],
+        val: "chuyen_trach",
+        calc: (val, opts) => {
+          const opt = opts.find(o => o.val === val);
+          return opt ? opt.score : 0;
+        }
+      },
+      {
+        id: "town_2_3",
+        code: "2.3",
+        title: "Tỷ lệ cán bộ được đào tạo kỹ năng số và Chuyển đổi số",
+        desc: "Công thức: a/b * Điểm tối đa (Không tính nhân viên y tế và trường học)",
+        maxScore: 20,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng cán bộ đã hoàn thành tập huấn (a)", val: 18, placeholder: "Nhập số người" },
+          b: { label: "Tổng số cán bộ thuộc biên chế UBND xã (b)", val: 20, placeholder: "Nhập tổng" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(20, Math.round((a / b) * 20 * 10) / 10);
+        }
+      },
+      {
+        id: "town_2_5",
+        code: "2.5",
+        title: "Thành viên Tổ Công nghệ số cộng đồng được bồi dưỡng kỹ năng",
+        desc: "Lực lượng nòng cốt đi hướng dẫn người dân số hóa, kích hoạt tài khoản",
+        maxScore: 50,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng thành viên Tổ CNSĐ đã tham gia bồi dưỡng (a)", val: 45, placeholder: "Nhập số lượng" },
+          b: { label: "Tổng số lượng thành viên Tổ CNSĐ trên toàn địa bàn (b)", val: 50, placeholder: "Nhập tổng số" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(50, Math.round((a / b) * 50 * 10) / 10);
+        }
+      }
+    ]
+  },
+  {
+    id: "town_pillar_3",
+    name: "III. An toàn thông tin, an ninh mạng",
+    maxScore: 100,
+    items: [
+      {
+        id: "town_3_1",
+        code: "3.1",
+        title: "Phê duyệt hồ sơ đề xuất bảo đảm an toàn hệ thống theo cấp độ",
+        desc: "Chỉ tính hệ thống tự vận hành của xã, nếu dùng chung hệ thống của tỉnh -> Đạt điểm tối đa",
+        maxScore: 20,
+        type: "ratio_or_max",
+        hasNoSystem: true,
+        inputs: {
+          a: { label: "Số hệ thống đã phê duyệt phương án (a)", val: 0, placeholder: "Nhập số" },
+          b: { label: "Tổng số hệ thống tự vận hành (b)", val: 0, placeholder: "Nhập tổng" }
+        },
+        calc: (a, b, hasNoSystem) => {
+          if (hasNoSystem) return 20;
+          if (!b || b <= 0) return 20;
+          return Math.min(20, Math.round((a / b) * 20 * 10) / 10);
+        }
+      },
+      {
+        id: "town_3_4",
+        code: "3.4",
+        title: "Tỷ lệ máy tính của xã cài đặt phần mềm diệt mã độc kết nối LAN",
+        desc: "Yêu cầu cài đặt đầy đủ theo quy định an toàn thông tin quốc gia",
+        maxScore: 40,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng máy tính đã cài đặt phần mềm diệt mã độc (a)", val: 18, placeholder: "Nhập số" },
+          b: { label: "Tổng số máy tính làm việc tại UBND cấp xã (b)", val: 20, placeholder: "Nhập tổng" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(40, Math.round((a / b) * 40 * 10) / 10);
+        }
+      },
+      {
+        id: "town_3_5",
+        code: "3.5",
+        title: "Tham gia các khóa diễn tập, ứng cứu sự cố an toàn thông tin",
+        desc: "Tham gia đầy đủ để nâng cao năng lực ứng phó tại cơ sở",
+        maxScore: 40,
+        type: "select",
+        options: [
+          { val: "day_du", label: "Tham gia đầy đủ các lớp của tỉnh/huyện tổ chức (40đ)", score: 40 },
+          { val: "khong_day_du", label: "Chưa tham gia hoặc không đầy đủ (0đ)", score: 0 }
+        ],
+        val: "day_du",
+        calc: (val, opts) => {
+          const opt = opts.find(o => o.val === val);
+          return opt ? opt.score : 0;
+        }
+      }
+    ]
+  },
+  {
+    id: "town_pillar_4",
+    name: "IV. Hoạt động chính quyền số",
+    maxScore: 520,
+    items: [
+      {
+        id: "town_4_3",
+        code: "4.3",
+        title: "Tỷ lệ sử dụng dịch vụ công trực tuyến của người dân, doanh nghiệp",
+        desc: "Nếu Tỷ lệ >= 80%: Điểm tối đa. Tỷ lệ < 80%: (Tỷ lệ / 0.8) * Điểm tối đa",
+        maxScore: 80,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng hồ sơ trực tuyến tiếp nhận (a)", val: 78, placeholder: "Nhập hồ sơ" },
+          b: { label: "Tổng số hồ sơ tiếp nhận giải quyết trực tuyến và trực tiếp (b)", val: 100, placeholder: "Nhập tổng" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          const ratio = a / b;
+          if (ratio >= 0.8) return 80;
+          return Math.round((ratio / 0.8) * 80 * 10) / 10;
+        }
+      },
+      {
+        id: "town_4_4",
+        code: "4.4",
+        title: "Tỷ lệ hồ sơ trực tuyến toàn trình xử lý thành công",
+        desc: "Nếu Tỷ lệ >= 80%: Điểm tối đa. Tỷ lệ < 80%: (Tỷ lệ / 0.8) * Điểm tối đa",
+        maxScore: 80,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng hồ sơ toàn trình xử lý thành công (a)", val: 82, placeholder: "Nhập số" },
+          b: { label: "Tổng số hồ sơ tiếp nhận giải quyết của các dịch vụ toàn trình (b)", val: 100, placeholder: "Nhập tổng" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          const ratio = a / b;
+          if (ratio >= 0.8) return 80;
+          return Math.round((ratio / 0.8) * 80 * 10) / 10;
+        }
+      },
+      {
+        id: "town_4_6",
+        code: "4.6",
+        title: "Tỷ lệ hồ sơ thủ tục hành chính giải quyết đúng hạn",
+        desc: "Đo lường mức độ phục vụ người dân của bộ phận một cửa xã",
+        maxScore: 60,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng hồ sơ giải quyết trước và đúng hạn (a)", val: 148, placeholder: "Nhập số" },
+          b: { label: "Tổng số hồ sơ hành chính tiếp nhận (b)", val: 150, placeholder: "Nhập tổng số" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(60, Math.round((a / b) * 60 * 10) / 10);
+        }
+      },
+      {
+        id: "town_4_10",
+        code: "4.10",
+        title: "Tỷ lệ hồ sơ, kết quả giải quyết TTHC được số hóa",
+        desc: "Yêu cầu số hóa toàn bộ để lưu trữ và tái sử dụng thông tin",
+        maxScore: 80,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số hồ sơ, kết quả được số hóa lưu kho dữ liệu (a)", val: 135, placeholder: "Nhập số" },
+          b: { label: "Tổng số hồ sơ đã giải quyết xong trong kỳ (b)", val: 150, placeholder: "Nhập tổng số" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(80, Math.round((a / b) * 80 * 10) / 10);
+        }
+      },
+      {
+        id: "town_4_11",
+        code: "4.11",
+        title: "Tỷ lệ hồ sơ công việc tại cấp xã được xử lý hoàn toàn trên môi trường mạng",
+        desc: "Áp dụng chữ ký số cá nhân cho lãnh đạo và công chức chuyên môn để phê duyệt",
+        maxScore: 80,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng văn bản, hồ sơ xử lý hoàn toàn điện tử (a)", val: 230, placeholder: "Nhập số" },
+          b: { label: "Tổng số văn bản đi, văn bản đến luân chuyển (b)", val: 250, placeholder: "Nhập tổng số" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(80, Math.round((a / b) * 80 * 10) / 10);
+        }
+      },
+      {
+        id: "town_4_12",
+        code: "4.12",
+        title: "Chế độ báo cáo định kỳ thực hiện tự động qua Hệ thống thông tin báo cáo",
+        desc: "Tối đa nếu đạt 100% tỷ lệ thực hiện báo cáo trực tuyến, 0đ nếu dưới 100%",
+        maxScore: 60,
+        type: "select",
+        options: [
+          { val: "dat_100", label: "Tỷ lệ thực hiện báo cáo số đạt 100% quy định (60đ)", score: 60 },
+          { val: "duoi_100", label: "Còn báo cáo giấy hoặc trễ hạn (0đ)", score: 0 }
+        ],
+        val: "dat_100",
+        calc: (val, opts) => {
+          const opt = opts.find(o => o.val === val);
+          return opt ? opt.score : 0;
+        }
+      },
+      {
+        id: "town_4_14",
+        code: "4.14",
+        title: "Khai thác hiệu quả, tương tác dữ liệu thông qua Trung tâm Giám sát điều hành IOC",
+        desc: "Thực hiện theo chỉ đạo số hóa và kết nối hạ tầng giám sát",
+        maxScore: 80,
+        type: "select",
+        options: [
+          { val: "co_trien_khai", label: "Có triển khai kết nối dữ liệu và khai thác hệ thống IOC tỉnh (80đ)", score: 80 },
+          { val: "khong_co", label: "Chưa kết nối hoặc chưa khai thác dữ liệu trực tuyến (0đ)", score: 0 }
+        ],
+        val: "co_trien_khai",
+        calc: (val, opts) => {
+          const opt = opts.find(o => o.val === val);
+          return opt ? opt.score : 0;
+        }
+      }
+    ]
+  },
+  {
+    id: "town_pillar_5",
+    name: "V. Hoạt động Kinh tế số",
+    maxScore: 80,
+    items: [
+      {
+        id: "town_5_1",
+        code: "5.1",
+        title: "Tỷ trọng kinh tế số trong tổng sản phẩm GRDP trên địa bàn",
+        desc: "Tỷ lệ >= 15%: Điểm tối đa. Tỷ lệ < 15%: (Tỷ lệ / 15%) * Điểm tối đa",
+        maxScore: 30,
+        type: "ratio",
+        inputs: {
+          a: { label: "Giá trị tăng thêm của kinh tế số địa phương (tỷ đồng) (a)", val: 32, placeholder: "Nhập giá trị" },
+          b: { label: "Tổng giá trị GRDP của xã/phường (tỷ đồng) (b)", val: 240, placeholder: "Nhập tổng GRDP" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          const ratio = a / b;
+          if (ratio >= 0.15) return 30;
+          return Math.round((ratio / 0.15) * 30 * 10) / 10;
+        }
+      },
+      {
+        id: "town_5_3",
+        code: "5.3",
+        title: "Tỷ trọng doanh thu từ thương mại điện tử trong tổng mức bán lẻ",
+        desc: "Tỷ lệ >= 20%: Điểm tối đa. Tỷ lệ < 20%: (Tỷ lệ / 20%) * Điểm tối đa",
+        maxScore: 50,
+        type: "ratio",
+        inputs: {
+          a: { label: "Doanh thu từ thương mại điện tử, kinh doanh online (tỷ đồng) (a)", val: 18, placeholder: "Nhập số" },
+          b: { label: "Tổng mức bán lẻ hàng hóa và doanh thu dịch vụ tiêu dùng (tỷ đồng) (b)", val: 110, placeholder: "Nhập tổng số" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          const ratio = a / b;
+          if (ratio >= 0.20) return 50;
+          return Math.round((ratio / 0.20) * 50 * 10) / 10;
+        }
+      }
+    ]
+  },
+  {
+    id: "town_pillar_6",
+    name: "VI. Hoạt động Xã hội số",
+    maxScore: 80,
+    items: [
+      {
+        id: "town_6_1",
+        code: "6.1",
+        title: "Tỷ lệ người dân từ 14 tuổi trở lên có tài khoản định danh điện tử VNeID",
+        desc: "Yêu cầu kích hoạt mức độ 2 trở lên phục vụ thủ tục hành chính số",
+        maxScore: 20,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số lượng người dân đã kích hoạt tài khoản định danh số (a)", val: 7800, placeholder: "Nhập số dân" },
+          b: { label: "Tổng số lượng dân cư từ 14 tuổi trở lên trên địa bàn (b)", val: 9500, placeholder: "Nhập tổng" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          return Math.min(20, Math.round((a / b) * 20 * 10) / 10);
+        }
+      },
+      {
+        id: "town_6_2",
+        code: "6.2",
+        title: "Tỷ lệ dân số từ 15 tuổi trở lên có tài khoản thanh toán trực tuyến",
+        desc: "Kênh thanh toán qua ngân hàng, ví điện tử phổ thông. Đạt tối đa nếu tỷ lệ >= 95%.",
+        maxScore: 20,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số người dân có tài khoản giao dịch ngân hàng hoạt động (a)", val: 7200, placeholder: "Nhập số lượng" },
+          b: { label: "Tổng số dân cư từ 15 tuổi trở lên trên địa bàn (b)", val: 9200, placeholder: "Nhập tổng số" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          const ratio = a / b;
+          if (ratio >= 0.95) return 20;
+          return Math.round((ratio / 0.95) * 20 * 10) / 10;
+        }
+      },
+      {
+        id: "town_6_3",
+        code: "6.3",
+        title: "Tỷ lệ người trưởng thành (trên 18 tuổi) sở hữu chữ ký số cá nhân",
+        desc: "Chữ ký số công cộng hoặc công vụ cá nhân. Tối đa nếu tỷ lệ >= 70%.",
+        maxScore: 20,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số công dân trưởng thành có chữ ký số hoạt động (a)", val: 2100, placeholder: "Nhập số lượng" },
+          b: { label: "Tổng dân cư trưởng thành trên 18 tuổi (b)", val: 8000, placeholder: "Nhập tổng số" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          const ratio = a / b;
+          if (ratio >= 0.70) return 20;
+          return Math.round((ratio / 0.70) * 20 * 10) / 10;
+        }
+      },
+      {
+        id: "town_6_4",
+        code: "6.4",
+        title: "Tỷ lệ người dân sở hữu Sổ sức khỏe điện tử",
+        desc: "Theo dõi hồ sơ y tế trực tuyến qua hệ sinh thái VNeID/VssID. Tối đa nếu tỷ lệ >= 95%.",
+        maxScore: 20,
+        type: "ratio",
+        inputs: {
+          a: { label: "Số công dân đã tích hợp dữ liệu sức khỏe điện tử (a)", val: 8100, placeholder: "Nhập số" },
+          b: { label: "Tổng dân số toàn địa bàn (b)", val: 12000, placeholder: "Nhập tổng số" }
+        },
+        calc: (a, b) => {
+          if (!b || b <= 0) return 0;
+          const ratio = a / b;
+          if (ratio >= 0.95) return 20;
+          return Math.round((ratio / 0.95) * 20 * 10) / 10;
+        }
+      }
+    ]
+  }
+];
 
-    <!-- SUBMENU SELECTOR -->
-    <div class="submenu-height bg-white border-b border-slate-200 flex items-center px-10 overflow-x-auto custom-scroll gap-2" id="subMenu"></div>
+// ==========================================
+// ỨNG DỤNG CHÍNH - REACT APP (EXPORTS APP)
+// ==========================================
 
-    <!-- MAIN TABLE CONTENT -->
-    <main class="content-height p-4 overflow-hidden bg-slate-100/50">
-        <div class="bg-white rounded-xl shadow-lg border border-slate-200 h-full flex flex-col overflow-hidden">
-            <div class="overflow-auto custom-scroll flex-1">
-                <table class="w-full border-collapse text-left relative" id="dataTable">
-                    <thead class="sticky top-0 bg-slate-50 z-20 shadow-sm border-b border-slate-200">
-                        <tr id="tableHeader"></tr>
-                    </thead>
-                    <tbody id="taskBody" class="divide-y divide-slate-100"></tbody>
-                </table>
-                <div id="noDataView" class="hidden flex flex-col items-center justify-center p-20 text-slate-300">
-                    <i data-lucide="search-x" class="w-12 h-12 mb-3 opacity-20"></i>
-                    <p class="font-bold">Không có dữ liệu hiển thị.</p>
-                </div>
-            </div>
-        </div>
-    </main>
-</div>
+export default function App() {
+  const [activeTab, setActiveTab] = useState("dep"); // "dep" (Sở ngành) | "town" (Cấp xã)
+  const [depData, setDepData] = useState(DEPARTMENTS_CRITERIA_TEMPLATE);
+  const [townData, setTownData] = useState(TOWNSHIPS_CRITERIA_TEMPLATE);
+  
+  // Thông tin đơn vị tự kê khai
+  const [unitInfo, setUnitInfo] = useState({
+    name: "Sở Khoa học và Công nghệ tỉnh Tây Ninh",
+    address: "Số 234, Đường 30/4, Phường 3, TP. Tây Ninh, Tỉnh Tây Ninh",
+    website: "https://skhcn.tayninh.gov.vn",
+    representative: "Nguyễn Văn A",
+    position: "Giám đốc Sở",
+    phone: "0276.3822.424",
+    email: "skhcn@tayninh.gov.vn"
+  });
 
-<script>
-    (function() {
-        // ==================== CẤU HÌNH & HẰNG SỐ ====================
-        const STORAGE_KEY = 'taskManagementData';
-        const CONFIG = {
-            menu: {
-                "Sở": {
-                    label: "Sở KH&CN",
-                    icon: "flask-conical",
-                    subs: ["Văn phòng", "P.CĐS", "P.KH", "P.TĐC", "P.CN&ĐMST", "P.TC-KH", "TT. CĐS", "TT.KH&CN", "ĐMST"]
-                },
-                "UBND tỉnh": {
-                    label: "UBND Tỉnh",
-                    icon: "landmark",
-                    subs: ["Kịch bản tăng trưởng", "KH2390-NQ24HĐND", "KH658-QĐ2815", "Đề án 1330", "CTHĐ KT-XH 2026", "CTLV 2026"]
-                },
-                "NQ57": { label: "Nghị quyết 57", icon: "file-text", subs: ["Kế hoạch hành động", "Phát triển hạ tầng", "Đào tạo nhân lực", "Phân bổ ngân sách"] },
-                "Tỉnh ủy": { label: "Tỉnh ủy", icon: "building-2", subs: ["Nghị quyết 11", "CTHD33", "CTLV25"] },
-                "Big Problems": {
-                    label: "Big Problems",
-                    icon: "zap",
-                    subs: ["Dự án UAV", "Kinh tế số", "Tín chỉ Carbon", "Halal", "Năng lượng", "Hệ sinh thái ĐMST", "Quản trị AI"]
-                }
-            },
-            progressOptions: [
-                "Chưa làm", "CV đang xử lý", "Lãnh đạo phòng kiểm tra",
-                "PGĐ đang kiểm tra", "Giám đốc duyệt", "Đã hoàn thành",
-                "Lấy ý kiến Sở ngành", "VP. UBND tỉnh", "VP Tỉnh ủy"
-            ]
+  const [townshipInfo, setTownshipInfo] = useState({
+    name: "UBND Phường 3, Thành phố Tây Ninh",
+    address: "Số 12, Đường Cách Mạng Tháng Tám, Phường 3, TP. Tây Ninh",
+    website: "https://phuong3.tptayninh.tayninh.gov.vn",
+    representative: "Trần Thị B",
+    position: "Chủ tịch UBND Phường",
+    phone: "0276.3822.112",
+    email: "p3.tptn@tayninh.gov.vn"
+  });
+
+  // Chế độ hiển thị: "eval" (Tự đánh giá) | "report" (Xem báo cáo xuất khẩu)
+  const [viewMode, setViewMode] = useState("eval");
+
+  // State hỗ trợ lọc tìm kiếm tiêu chí nhanh
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // ==========================================
+  // HÀM XỬ LÝ SỰ KIỆN THAY ĐỔI NHẬP LIỆU
+  // ==========================================
+
+  const handleRatioChange = (pillarId, itemId, inputKey, value) => {
+    const numericVal = parseFloat(value) || 0;
+    const targetState = activeTab === "dep" ? depData : townData;
+    const setTargetState = activeTab === "dep" ? setDepData : setTownData;
+
+    const updated = targetState.map(pillar => {
+      if (pillar.id !== pillarId) return pillar;
+      return {
+        ...pillar,
+        items: pillar.items.map(item => {
+          if (item.id !== itemId) return item;
+          return {
+            ...item,
+            inputs: {
+              ...item.inputs,
+              [inputKey]: { ...item.inputs[inputKey], val: numericVal }
+            }
+          };
+        })
+      };
+    });
+    setTargetState(updated);
+  };
+
+  const handleCheckboxChange = (pillarId, itemId, optionKey) => {
+    const targetState = activeTab === "dep" ? depData : townData;
+    const setTargetState = activeTab === "dep" ? setDepData : setTownData;
+
+    const updated = targetState.map(pillar => {
+      if (pillar.id !== pillarId) return pillar;
+      return {
+        ...pillar,
+        items: pillar.items.map(item => {
+          if (item.id !== itemId) return item;
+          return {
+            ...item,
+            options: item.options.map(opt => {
+              if (opt.key !== optionKey) return opt;
+              return { ...opt, checked: !opt.checked };
+            })
+          };
+        })
+      };
+    });
+    setTargetState(updated);
+  };
+
+  const handleSelectChange = (pillarId, itemId, value) => {
+    const targetState = activeTab === "dep" ? depData : townData;
+    const setTargetState = activeTab === "dep" ? setDepData : setTownData;
+
+    const updated = targetState.map(pillar => {
+      if (pillar.id !== pillarId) return pillar;
+      return {
+        ...pillar,
+        items: pillar.items.map(item => {
+          if (item.id !== itemId) return item;
+          return { ...item, val: value };
+        })
+      };
+    });
+    setTargetState(updated);
+  };
+
+  const handleToggleNoSystem = (pillarId, itemId) => {
+    const targetState = activeTab === "dep" ? depData : townData;
+    const setTargetState = activeTab === "dep" ? setDepData : setTownData;
+
+    const updated = targetState.map(pillar => {
+      if (pillar.id !== pillarId) return pillar;
+      return {
+        ...pillar,
+        items: pillar.items.map(item => {
+          if (item.id !== itemId) return item;
+          return { ...item, hasNoSystem: !item.hasNoSystem };
+        })
+      };
+    });
+    setTargetState(updated);
+  };
+
+  const handleTaskReportingChange = (pillarId, itemId, key, value) => {
+    const targetState = activeTab === "dep" ? depData : townData;
+    const setTargetState = activeTab === "dep" ? setDepData : setTownData;
+
+    const updated = targetState.map(pillar => {
+      if (pillar.id !== pillarId) return pillar;
+      return {
+        ...pillar,
+        items: pillar.items.map(item => {
+          if (item.id !== itemId) return item;
+          return {
+            ...item,
+            inputs: {
+              ...item.inputs,
+              [key]: value
+            }
+          };
+        })
+      };
+    });
+    setTargetState(updated);
+  };
+
+  const resetToDefault = () => {
+    if (activeTab === "dep") {
+      setDepData(JSON.parse(JSON.stringify(DEPARTMENTS_CRITERIA_TEMPLATE)));
+    } else {
+      setTownData(JSON.parse(JSON.stringify(TOWNSHIPS_CRITERIA_TEMPLATE)));
+    }
+  };
+
+  // ==========================================
+  // BỘ TÍNH TOÁN KẾT QUẢ TỰ ĐỘNG (REAL-TIME ENGINE)
+  // ==========================================
+
+  const results = useMemo(() => {
+    const currentPillars = activeTab === "dep" ? depData : townData;
+    let grandTotal = 0;
+    let maxGrandTotal = activeTab === "dep" ? 1000 : 960;
+
+    const breakdown = currentPillars.map(pillar => {
+      let pillarSum = 0;
+      const itemsDetailed = pillar.items.map(item => {
+        let score = 0;
+        if (item.type === "ratio") {
+          score = item.calc(item.inputs.a.val, item.inputs.b.val);
+        } else if (item.type === "checkboxes") {
+          score = item.calc(item.options);
+        } else if (item.type === "select") {
+          score = item.calc(item.val, item.options);
+        } else if (item.type === "ratio_or_max") {
+          score = item.calc(item.inputs.a.val, item.inputs.b.val, item.hasNoSystem);
+        } else if (item.type === "task_reporting") {
+          score = item.calc(item.inputs.status, item.inputs.lateReportsCount);
+        }
+        pillarSum += score;
+        return {
+          id: item.id,
+          code: item.code,
+          title: item.title,
+          maxScore: item.maxScore,
+          score: Math.min(item.maxScore, score)
         };
+      });
 
-        // ==================== STATE ====================
-        let tasks = {}; // { mainKey: { subName: { headers: [...], rows: [ {...}, ... ] } } }
-        let currentMainKey = "Sở";
-        let currentSubName = "TẤT CẢ";
+      grandTotal += pillarSum;
+      return {
+        id: pillar.id,
+        name: pillar.name,
+        maxScore: pillar.maxScore,
+        score: Math.min(pillar.maxScore, Math.round(pillarSum * 10) / 10),
+        items: itemsDetailed
+      };
+    });
 
-        // ==================== HÀM TIỆN ÍCH ====================
-        const utils = {
-            generateId: () => {
-                if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-                    return crypto.randomUUID();
-                }
-                return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-            },
-            parseDate: (dateStr) => {
-                if (!dateStr) return null;
-                let parts = dateStr.split('/');
-                if (parts.length === 3) {
-                    let d = parseInt(parts[0], 10);
-                    let m = parseInt(parts[1], 10) - 1;
-                    let y = parseInt(parts[2], 10);
-                    if (!isNaN(d) && !isNaN(m) && !isNaN(y)) return new Date(y, m, d);
-                }
-                parts = dateStr.split('-');
-                if (parts.length === 3) {
-                    let y = parseInt(parts[0], 10);
-                    let m = parseInt(parts[1], 10) - 1;
-                    let d = parseInt(parts[2], 10);
-                    if (!isNaN(d) && !isNaN(m) && !isNaN(y)) return new Date(y, m, d);
-                }
-                return null;
-            },
-            getStatus: (progress, deadlineStr) => {
-                if (progress === "Đã hoàn thành" || progress === "Giám đốc duyệt") {
-                    return "DONE";
-                }
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const deadline = utils.parseDate(deadlineStr);
-                if (deadline && deadline < today) {
-                    return "OVERDUE";
-                }
-                return "PENDING";
-            },
-            findProgressColumnIndex: (headers) => {
-                const keywords = ["tiến độ", "trạng thái", "progress"];
-                for (let i = 0; i < headers.length; i++) {
-                    const header = headers[i].toLowerCase();
-                    if (keywords.some(kw => header.includes(kw))) {
-                        return i;
-                    }
-                }
-                return -1;
-            }
-        };
+    // Làm tròn tổng điểm cuối cùng
+    const finalScore = Math.min(maxGrandTotal, Math.round(grandTotal * 10) / 10);
 
-        // ==================== LƯU & TẢI LOCALSTORAGE ====================
-        function saveToLocalStorage() {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-            } catch (e) {
-                console.error('Không thể lưu dữ liệu:', e);
-            }
+    // Tính toán phân loại xếp hạng theo quy định ở trang 4/6
+    let rating = "";
+    let ratingColor = "";
+    let ratingBg = "";
+
+    if (activeTab === "dep") {
+      if (finalScore >= 950) { rating = "XUẤT SẮC"; ratingColor = "text-emerald-600"; ratingBg = "bg-emerald-50 border-emerald-200"; }
+      else if (finalScore > 850) { rating = "TỐT"; ratingColor = "text-blue-600"; ratingBg = "bg-blue-50 border-blue-200"; }
+      else if (finalScore > 650) { rating = "KHÁ"; ratingColor = "text-amber-600"; ratingBg = "bg-amber-50 border-amber-200"; }
+      else if (finalScore >= 500) { rating = "TRUNG BÌNH"; ratingColor = "text-slate-600"; ratingBg = "bg-slate-50 border-slate-200"; }
+      else { rating = "YẾU"; ratingColor = "text-rose-600"; ratingBg = "bg-rose-50 border-rose-200"; }
+    } else {
+      if (finalScore >= 870) { rating = "XUẤT SẮC"; ratingColor = "text-emerald-600"; ratingBg = "bg-emerald-50 border-emerald-200"; }
+      else if (finalScore > 770) { rating = "TỐT"; ratingColor = "text-blue-600"; ratingBg = "bg-blue-50 border-blue-200"; }
+      else if (finalScore > 630) { rating = "KHÁ"; ratingColor = "text-amber-600"; ratingBg = "bg-amber-50 border-amber-200"; }
+      else if (finalScore >= 480) { rating = "TRUNG BÌNH"; ratingColor = "text-slate-600"; ratingBg = "bg-slate-50 border-slate-200"; }
+      else { rating = "YẾU"; ratingColor = "text-rose-600"; ratingBg = "bg-rose-50 border-rose-200"; }
+    }
+
+    // AI sinh khuyến nghị và cảnh báo lỗi thực thi để cải thiện điểm số
+    const actionableRecommendations = [];
+    breakdown.forEach(p => {
+      p.items.forEach(it => {
+        if (it.score < it.maxScore) {
+          const lostPoints = Math.round((it.maxScore - it.score) * 10) / 10;
+          actionableRecommendations.push({
+            pillarName: p.name,
+            code: it.code,
+            title: it.title,
+            lostPoints,
+            recommendation: `Đang đạt ${it.score}/${it.maxScore}đ. Hãy cải thiện chỉ số bằng cách tối ưu hóa hồ sơ đầu vào hoặc nâng cấp hạ tầng số để giành trọn vẹn ${lostPoints}đ còn thiếu.`
+          });
         }
+      });
+    });
 
-        function loadFromLocalStorage() {
-            try {
-                const saved = localStorage.getItem(STORAGE_KEY);
-                if (saved) {
-                    tasks = JSON.parse(saved);
-                }
-            } catch (e) {
-                console.error('Không thể tải dữ liệu:', e);
-                tasks = {};
-            }
-        }
+    return {
+      breakdown,
+      finalScore,
+      maxGrandTotal,
+      rating,
+      ratingColor,
+      ratingBg,
+      recommendations: actionableRecommendations.sort((a, b) => b.lostPoints - a.lostPoints).slice(0, 5) // Top 5 khuyến nghị cần khắc phục nhiều điểm nhất
+    };
+  }, [activeTab, depData, townData]);
 
-        // ==================== HÀM LẤY DỮ LIỆU ====================
-        function getDataForMain(mainKey) {
-            return tasks[mainKey] || {};
-        }
+  // Bộ lọc tiêu chí dựa trên tìm kiếm
+  const filteredPillars = useMemo(() => {
+    const currentPillars = activeTab === "dep" ? depData : townData;
+    if (!searchQuery.trim()) return currentPillars;
 
-        function getCurrentData() {
-            const mainData = getDataForMain(currentMainKey);
-            if (currentSubName === "TẤT CẢ") {
-                const allRows = [];
-                const allHeaders = [];
-                for (const sub in mainData) {
-                    if (mainData[sub].headers) {
-                        if (allHeaders.length === 0) {
-                            allHeaders.push(...mainData[sub].headers);
-                        }
-                        allRows.push(...mainData[sub].rows);
-                    }
-                }
-                return { headers: allHeaders, rows: allRows };
-            } else {
-                return mainData[currentSubName] || { headers: [], rows: [] };
-            }
-        }
+    return currentPillars.map(pillar => {
+      const matchedItems = pillar.items.filter(item =>
+        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.code.includes(searchQuery)
+      );
+      if (matchedItems.length === 0) return null;
+      return {
+        ...pillar,
+        items: matchedItems
+      };
+    }).filter(Boolean);
+  }, [activeTab, depData, townData, searchQuery]);
 
-        function getAllTasks() {
-            const allRows = [];
-            for (const main in tasks) {
-                for (const sub in tasks[main]) {
-                    allRows.push(...(tasks[main][sub].rows || []));
-                }
-            }
-            return allRows;
-        }
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
+      {/* HEADER QUỐC GIA & THƯƠNG HIỆU TỈNH TÂY NINH */}
+      <header className="bg-gradient-to-r from-emerald-800 via-teal-700 to-emerald-900 text-white shadow-md">
+        <div className="max-w-7xl mx-auto px-4 py-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            {/* Biểu tượng trống đồng Đông Sơn / Logo Cách Điệu Đại Diện Ủy Ban */}
+            <div className="w-14 h-14 bg-white/10 rounded-full flex items-center justify-center border border-white/20 shadow-inner">
+              <svg className="w-10 h-10 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.53c-.26-.81-1-1.4-1.9-1.4h-1v-3c0-.55-.45-1-1-1h-6v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.4z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs font-semibold tracking-wider text-emerald-200 uppercase">Hệ Thống Công Cụ Số Hóa - UBND Tỉnh Tây Ninh</p>
+              <h1 className="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-2">
+                Hệ thống Tự Đánh giá DTI Tây Ninh <span className="bg-yellow-400 text-emerald-950 text-xs px-2.5 py-0.5 rounded-full font-bold">2026</span>
+              </h1>
+              <p className="text-xs text-emerald-100/90 mt-1">Chuẩn hóa theo Quyết định số 5529/QĐ-UBND ngày 01/04/2026 của Ủy ban nhân dân tỉnh</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setViewMode("eval"); }}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                viewMode === "eval" ? "bg-white text-emerald-950 shadow-sm" : "hover:bg-white/10 text-white"
+              }`}
+            >
+              📝 Nhập Liệu Tự Đánh Giá
+            </button>
+            <button
+              onClick={() => { setViewMode("report"); }}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                viewMode === "report" ? "bg-white text-emerald-950 shadow-sm" : "hover:bg-white/10 text-white"
+              }`}
+            >
+              📄 Xem Báo Cáo Thẩm Định
+            </button>
+          </div>
+        </div>
+      </header>
 
-        // ==================== HÀM RENDER ====================
-        const render = {
-            mainMenu: () => {
-                const container = document.getElementById('mainMenu');
-                const html = Object.keys(CONFIG.menu).map(key => {
-                    const cfg = CONFIG.menu[key];
-                    return `
-                    <li>
-                        <button onclick="App.selectMain('${key}')" id="menu-${key}" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold text-xs group">
-                            <i data-lucide="${cfg.icon}" class="w-4 h-4 opacity-40 group-hover:opacity-100"></i>
-                            <span class="flex-1 text-left uppercase tracking-tight">${cfg.label}</span>
-                        </button>
-                    </li>
-                    `;
-                }).join('');
-                container.innerHTML = html;
-                lucide.createIcons();
-            },
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        
+        {/* TABS LỰA CHỌN PHÂN CẤP ĐÁNH GIÁ (QUYẾT ĐỊNH 5529) */}
+        {viewMode === "eval" && (
+          <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-200/80 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
+              <button
+                onClick={() => { setActiveTab("dep"); setSearchQuery(""); }}
+                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                  activeTab === "dep" ? "bg-white text-emerald-800 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                🏢 Khối Sở, Ban, Ngành (1000đ)
+              </button>
+              <button
+                onClick={() => { setActiveTab("town"); setSearchQuery(""); }}
+                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                  activeTab === "town" ? "bg-white text-emerald-800 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                🏡 Khối Xã, Phường, Thị Trấn (960đ)
+              </button>
+            </div>
 
-            subMenu: () => {
-                const cfg = CONFIG.menu[currentMainKey];
-                if (!cfg) return;
-                const allSubs = ["TẤT CẢ", ...cfg.subs];
-                const container = document.getElementById('subMenu');
-                const html = allSubs.map(sub => `
-                    <button onclick="App.selectSub('${sub}')" class="sub-btn whitespace-nowrap px-4 py-2 rounded-lg border border-slate-200 text-[11px] font-black uppercase transition-all bg-slate-50 hover:bg-white hover:shadow-sm">
-                        ${sub}
-                    </button>
-                `).join('');
-                container.innerHTML = html;
+            {/* Khối tìm kiếm thông minh */}
+            <div className="relative w-full sm:w-80">
+              <input
+                type="text"
+                placeholder="Tìm nhanh tiêu chí, mã số..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 rounded-lg text-sm border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <span className="absolute left-3 top-2.5 text-slate-400">🔍</span>
+            </div>
+          </div>
+        )}
 
-                document.querySelectorAll('.sub-btn').forEach(btn => {
-                    if (btn.innerText.trim() === currentSubName) {
-                        btn.classList.add('bg-blue-700', 'text-white', 'border-blue-700');
-                        btn.classList.remove('bg-slate-50');
-                    } else {
-                        btn.classList.remove('bg-blue-700', 'text-white', 'border-blue-700');
-                        btn.classList.add('bg-slate-50');
-                    }
-                });
-            },
+        {/* PHÂN VÙNG CHÍNH - NHẬP LIỆU TỰ ĐÁNH GIÁ */}
+        {viewMode === "eval" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            {/* PHẦN TRÁI: DANH SÁCH FORM NHẬP TIÊU CHÍ */}
+            <div className="lg:col-span-2 space-y-6">
+              {filteredPillars.length === 0 ? (
+                <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                  <p className="text-slate-500 font-medium">Không tìm thấy tiêu chí nào phù hợp với từ khóa.</p>
+                  <button onClick={() => setSearchQuery("")} className="mt-2 text-emerald-600 text-sm font-semibold hover:underline">Xóa bộ lọc tìm kiếm</button>
+                </div>
+              ) : (
+                filteredPillars.map(pillar => (
+                  <div key={pillar.id} className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                    <div className="bg-slate-50 border-b border-slate-200/80 px-6 py-4 flex justify-between items-center">
+                      <h2 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                        <span className="w-2.5 h-5 bg-emerald-600 rounded-full inline-block"></span>
+                        {pillar.name}
+                      </h2>
+                      <span className="text-xs font-semibold bg-slate-200 text-slate-700 px-3 py-1 rounded-full">
+                        Tối đa: {pillar.maxScore}đ
+                      </span>
+                    </div>
 
-            taskTable: () => {
-                const data = getCurrentData();
-                const headers = data.headers || [];
-                const rows = data.rows || [];
-                const tbody = document.getElementById('taskBody');
-                const thead = document.getElementById('tableHeader');
-                const emptyView = document.getElementById('noDataView');
+                    <div className="divide-y divide-slate-100">
+                      {pillar.items.map(item => {
+                        // Tính điểm cục bộ để hiển thị ngay trong danh sách nhập liệu
+                        const currentSum = results.breakdown.find(p => p.id === pillar.id)?.items.find(it => it.id === item.id)?.score || 0;
+                        const isScorePerfect = currentSum === item.maxScore;
 
-                if (headers.length === 0) {
-                    thead.innerHTML = '';
-                } else {
-                    thead.innerHTML = headers.map(h => 
-                        `<th class="p-4 text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">${h}</th>`
-                    ).join('');
-                }
+                        return (
+                          <div key={item.id} className="p-6 hover:bg-slate-50/50 transition-colors">
+                            <div className="flex justify-between items-start gap-4 mb-3">
+                              <div>
+                                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded mr-2">
+                                  Tiêu chí {item.code}
+                                </span>
+                                <h3 className="font-semibold text-slate-800 inline-block text-base mt-1">{item.title}</h3>
+                                <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className={`text-lg font-bold ${isScorePerfect ? "text-emerald-600" : "text-amber-600"}`}>
+                                  {currentSum}
+                                </span>
+                                <span className="text-slate-400 text-sm font-medium"> / {item.maxScore}đ</span>
+                              </div>
+                            </div>
 
-                if (rows.length === 0) {
-                    tbody.innerHTML = '';
-                    emptyView.classList.remove('hidden');
-                    return;
-                }
-
-                emptyView.classList.add('hidden');
-                const progressColIndex = utils.findProgressColumnIndex(headers);
-                const fragment = document.createDocumentFragment();
-
-                rows.forEach((row, index) => {
-                    const tr = document.createElement('tr');
-                    tr.className = 'hover:bg-slate-50 transition';
-
-                    for (let i = 0; i < headers.length; i++) {
-                        const td = document.createElement('td');
-                        td.className = 'p-4 text-sm';
-
-                        if (i === progressColIndex) {
-                            const progressValue = row[headers[i]] || CONFIG.progressOptions[0];
-                            const deadlineStr = row["Hạn giao"] || row["Hạn"] || "";
-                            const status = utils.getStatus(progressValue, deadlineStr);
-                            
-                            let badgeClass = "bg-blue-100 text-blue-700";
-                            let badgeText = "Đang làm";
-                            if (status === "DONE") {
-                                badgeClass = "bg-emerald-100 text-emerald-700";
-                                badgeText = "Xong";
-                            } else if (status === "OVERDUE") {
-                                badgeClass = "bg-rose-100 text-rose-700";
-                                badgeText = "Quá hạn";
-                            }
-
-                            td.innerHTML = `
-                                <div class="flex items-center gap-3">
-                                    <select onchange="App.updateRow('${row._id}', ${i}, this.value)" class="flex-1 bg-white border border-slate-200 rounded p-1.5 text-[11px] font-bold shadow-sm">
-                                        ${CONFIG.progressOptions.map(opt => `<option value="${opt}" ${progressValue === opt ? 'selected' : ''}>${opt}</option>`).join('')}
-                                    </select>
-                                    <span class="status-badge ${badgeClass} min-w-[80px] text-center shadow-sm">${badgeText}</span>
+                            {/* CẤU TRÚC ĐIỀU KHIỂN DỰA TRÊN LOẠI TIÊU CHÍ */}
+                            <div className="mt-4 bg-slate-50 rounded-xl p-4 border border-slate-200/60">
+                              
+                              {/* Loại 1: Tỉ lệ chuẩn hóa a/b */}
+                              {item.type === "ratio" && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide">{item.inputs.a.label}</label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={item.inputs.a.val}
+                                      placeholder={item.inputs.a.placeholder}
+                                      onChange={(e) => handleRatioChange(pillar.id, item.id, "a", e.target.value)}
+                                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide">{item.inputs.b.label}</label>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={item.inputs.b.val}
+                                      placeholder={item.inputs.b.placeholder}
+                                      onChange={(e) => handleRatioChange(pillar.id, item.id, "b", e.target.value)}
+                                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                    />
+                                  </div>
                                 </div>
-                            `;
-                        } else {
-                            td.textContent = row[headers[i]] || '';
-                            td.classList.add('text-slate-800');
-                        }
-                        tr.appendChild(td);
-                    }
-                    fragment.appendChild(tr);
-                });
+                              )}
 
-                tbody.innerHTML = '';
-                tbody.appendChild(fragment);
-                lucide.createIcons();
-            },
+                              {/* Loại 2: Checkboxes ứng dụng (AI,...) */}
+                              {item.type === "checkboxes" && (
+                                <div className="space-y-2">
+                                  {item.options.map(opt => (
+                                    <label key={opt.key} className="flex items-start gap-2.5 cursor-pointer py-1">
+                                      <input
+                                        type="checkbox"
+                                        checked={opt.checked}
+                                        onChange={() => handleCheckboxChange(pillar.id, item.id, opt.key)}
+                                        className="mt-1 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                                      />
+                                      <span className="text-sm text-slate-700 font-medium">{opt.label}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
 
-            stats: () => {
-                const allTasks = getAllTasks();
-                const total = allTasks.length;
-                let done = 0, pending = 0, overdue = 0;
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
+                              {/* Loại 3: Select lựa chọn duy nhất */}
+                              {item.type === "select" && (
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Trạng thái triển khai thực tế</label>
+                                  <select
+                                    value={item.val}
+                                    onChange={(e) => handleSelectChange(pillar.id, item.id, e.target.value)}
+                                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                  >
+                                    {item.options.map(opt => (
+                                      <option key={opt.val} value={opt.val}>{opt.label}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
 
-                allTasks.forEach(row => {
-                    const progress = Object.values(row).find(v => 
-                        typeof v === 'string' && CONFIG.progressOptions.includes(v)
-                    ) || "Chưa làm";
-                    const deadlineStr = row["Hạn giao"] || row["Hạn"] || "";
-                    
-                    if (progress === "Đã hoàn thành" || progress === "Giám đốc duyệt") {
-                        done++;
-                    } else {
-                        const deadline = utils.parseDate(deadlineStr);
-                        if (deadline && deadline < today) {
-                            overdue++;
-                        } else {
-                            pending++;
-                        }
-                    }
-                });
+                              {/* Loại 4: Tỉ lệ có chế độ loại trừ (Nếu không tự vận hành hệ thống riêng) */}
+                              {item.type === "ratio_or_max" && (
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="checkbox"
+                                      id={`no_sys_${item.id}`}
+                                      checked={item.hasNoSystem}
+                                      onChange={() => handleToggleNoSystem(pillar.id, item.id)}
+                                      className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                                    />
+                                    <label htmlFor={`no_sys_${item.id}`} className="text-xs font-bold text-slate-600 uppercase tracking-wide cursor-pointer">
+                                      Đơn vị không tự quản lý/vận hành hệ thống riêng (Nhận điểm tối đa)
+                                    </label>
+                                  </div>
 
-                document.getElementById('stat-total').innerText = total;
-                document.getElementById('stat-pending').innerText = pending;
-                document.getElementById('stat-overdue').innerText = overdue;
-                document.getElementById('stat-done').innerText = done;
+                                  {!item.hasNoSystem && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-200 pt-3">
+                                      <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide">{item.inputs.a.label}</label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          value={item.inputs.a.val}
+                                          onChange={(e) => handleRatioChange(pillar.id, item.id, "a", e.target.value)}
+                                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide">{item.inputs.b.label}</label>
+                                        <input
+                                          type="number"
+                                          min="1"
+                                          value={item.inputs.b.val}
+                                          onChange={(e) => handleRatioChange(pillar.id, item.id, "b", e.target.value)}
+                                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
 
-                const currentData = getCurrentData();
-                const currentRows = currentData.rows || [];
-                const subTotal = currentRows.length;
-                let subDone = 0, subPending = 0;
-                currentRows.forEach(row => {
-                    const progress = Object.values(row).find(v => 
-                        typeof v === 'string' && CONFIG.progressOptions.includes(v)
-                    ) || "Chưa làm";
-                    if (progress === "Đã hoàn thành" || progress === "Giám đốc duyệt") {
-                        subDone++;
-                    } else {
-                        subPending++;
-                    }
-                });
+                              {/* Loại 5: Chế độ báo cáo trễ giảm trừ điểm */}
+                              {item.type === "task_reporting" && (
+                                <div className="space-y-4">
+                                  <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Tình trạng hoàn thành kế hoạch năm</label>
+                                    <select
+                                      value={item.inputs.status}
+                                      onChange={(e) => handleTaskReportingChange(pillar.id, item.id, "status", e.target.value)}
+                                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                    >
+                                      <option value="completed_on_time">Đã triển khai hoàn thành đầy đủ các kế hoạch (200đ)</option>
+                                      <option value="completed_no_report">Có triển khai nhưng chưa làm báo cáo tổng hợp (100đ)</option>
+                                      <option value="not_completed">Chưa hoàn thành nhiệm vụ kế hoạch được giao (0đ)</option>
+                                    </select>
+                                  </div>
 
-                document.getElementById('stat-sub-total').innerText = subTotal;
-                document.getElementById('stat-sub-pending').innerText = subPending;
-                document.getElementById('stat-sub-done').innerText = subDone;
-            },
+                                  {item.inputs.status !== "not_completed" && (
+                                    <div className="border-t border-slate-200 pt-3">
+                                      <div className="flex justify-between items-center mb-1.5">
+                                        <label className="block text-xs font-bold text-slate-600 uppercase tracking-wide">Số lần nộp báo cáo trễ hạn (Mỗi lần bị phạt trừ 15đ)</label>
+                                        <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded">
+                                          Trừ: {item.inputs.lateReportsCount * 15}đ
+                                        </span>
+                                      </div>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        max="10"
+                                        value={item.inputs.lateReportsCount}
+                                        onChange={(e) => handleTaskReportingChange(pillar.id, item.id, "lateReportsCount", parseInt(e.target.value) || 0)}
+                                        className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
 
-            all: () => {
-                render.taskTable();
-                render.stats();
-            }
-        };
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
 
-        // ==================== XỬ LÝ SỰ KIỆN ====================
-        const handlers = {
-            selectMain: (key) => {
-                currentMainKey = key;
-                currentSubName = "TẤT CẢ";
+            {/* PHẦN PHẢI: BẢNG TỔNG HỢP VÀ KẾT QUẢ ĐẦU RA THỜI GIAN THỰC */}
+            <div className="space-y-6">
+              
+              {/* CARD ĐIỂM SỐ CHÍNH */}
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 text-center sticky top-6">
+                <p className="text-xs font-bold text-slate-400 tracking-wider uppercase mb-1">TỔNG ĐIỂM DTI TỰ CHẤM</p>
+                <div className="relative inline-flex items-center justify-center my-4">
+                  {/* Vòng tròn biểu diễn điểm số trực quan */}
+                  <svg className="w-40 h-40 transform -rotate-90">
+                    <circle cx="80" cy="80" r="70" fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="70"
+                      fill="transparent"
+                      stroke="#059669"
+                      strokeWidth="12"
+                      strokeDasharray={440}
+                      strokeDashoffset={440 - (results.finalScore / results.maxGrandTotal) * 440}
+                      className="transition-all duration-500 ease-out"
+                    />
+                  </svg>
+                  <div className="absolute flex flex-col items-center">
+                    <span className="text-4xl font-extrabold text-slate-800 tracking-tight">{results.finalScore}</span>
+                    <span className="text-slate-400 text-xs font-semibold">trên {results.maxGrandTotal}đ</span>
+                  </div>
+                </div>
 
-                document.querySelectorAll('#mainMenu button').forEach(btn => btn.classList.remove('bg-blue-600', 'text-white'));
-                const activeBtn = document.getElementById(`menu-${key}`);
-                if (activeBtn) activeBtn.classList.add('bg-blue-600', 'text-white');
+                <div className={`mt-2 py-2 px-4 rounded-xl border font-bold text-sm tracking-wide ${results.ratingBg}`}>
+                  XẾP LOẠI: <span className={results.ratingColor}>{results.rating}</span>
+                </div>
 
-                document.getElementById('dashboardTitle').innerText = CONFIG.menu[key].label;
-                render.subMenu();
-                render.all();
-            },
+                {/* Phân rã tiến độ cột trụ cột */}
+                <div className="mt-6 space-y-3.5 text-left">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tiến độ từng chỉ số thành phần</h4>
+                  {results.breakdown.map(p => {
+                    const pct = Math.round((p.score / p.maxScore) * 100);
+                    return (
+                      <div key={p.id}>
+                        <div className="flex justify-between text-xs font-semibold mb-1">
+                          <span className="text-slate-600 truncate max-w-[180px]">{p.name.split(". ")[1] || p.name}</span>
+                          <span className="text-slate-800 shrink-0">{p.score} / {p.maxScore}đ ({pct}%)</span>
+                        </div>
+                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                          <div className="bg-emerald-600 h-full rounded-full transition-all duration-300" style={{ width: `${pct}%` }}></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
 
-            selectSub: (sub) => {
-                currentSubName = sub;
-                document.getElementById('currentSubLabel').innerText = sub === "TẤT CẢ" ? "Toàn bộ danh sách" : sub;
+                {/* Các nút lệnh thao tác bổ sung */}
+                <div className="mt-8 pt-6 border-t border-slate-100 grid grid-cols-2 gap-3">
+                  <button
+                    onClick={resetToDefault}
+                    className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                  >
+                    🔄 Đặt lại mặc định
+                  </button>
+                  <button
+                    onClick={() => { setViewMode("report"); }}
+                    className="px-3 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors"
+                  >
+                    📑 Xuất báo cáo
+                  </button>
+                </div>
+              </div>
 
-                document.querySelectorAll('.sub-btn').forEach(btn => {
-                    if (btn.innerText.trim() === sub) {
-                        btn.classList.add('bg-blue-700', 'text-white', 'border-blue-700');
-                        btn.classList.remove('bg-slate-50');
-                    } else {
-                        btn.classList.remove('bg-blue-700', 'text-white', 'border-blue-700');
-                        btn.classList.add('bg-slate-50');
-                    }
-                });
+              {/* CARD RECOMMENDATION TỰ ĐỘNG - THAY THẾ BAN THẨM ĐỊNH */}
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-lg">💡</span>
+                  <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide">Giải pháp bứt phá điểm số tự động</h3>
+                </div>
+                {results.recommendations.length === 0 ? (
+                  <p className="text-xs text-emerald-600 font-medium bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                    🎉 Tuyệt vời! Đơn vị của bạn đã đạt điểm số tối đa của toàn bộ tất cả các chỉ số hiện hành.
+                  </p>
+                ) : (
+                  <div className="space-y-3.5">
+                    {results.recommendations.map((rec, idx) => (
+                      <div key={idx} className="p-3 bg-slate-50 rounded-xl border border-slate-200/60 text-xs">
+                        <div className="flex justify-between font-bold text-slate-700 mb-1">
+                          <span>Chỉ tiêu {rec.code}</span>
+                          <span className="text-rose-600">-{rec.lostPoints}đ</span>
+                        </div>
+                        <p className="font-semibold text-slate-800 mb-1">{rec.title}</p>
+                        <p className="text-slate-500 leading-relaxed">{rec.recommendation}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-                render.all();
-            },
+            </div>
 
-            updateRow: (rowId, colIndex, newValue) => {
-                const data = getCurrentData();
-                const row = data.rows.find(r => r._id === rowId);
-                if (row && data.headers[colIndex]) {
-                    row[data.headers[colIndex]] = newValue;
-                    saveToLocalStorage();
-                    render.all();
-                }
-            },
+          </div>
+        )}
 
-            handleExcelUpload: (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const sheetName = workbook.SheetNames[0];
-                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
-                    
-                    if (rows.length < 2) {
-                        alert("File Excel không có dữ liệu (cần ít nhất 2 dòng).");
-                        return;
-                    }
-
-                    const headers = rows[0].map(h => (h || "").toString().trim());
-                    const newRows = [];
-
-                    for (let i = 1; i < rows.length; i++) {
-                        const rowData = rows[i];
-                        if (!rowData || rowData.length === 0) continue;
-                        
-                        const rowObj = { _id: utils.generateId() };
-                        headers.forEach((header, idx) => {
-                            rowObj[header] = (rowData[idx] !== undefined ? rowData[idx] : "").toString().trim();
-                        });
-                        newRows.push(rowObj);
-                    }
-
-                    if (newRows.length > 0) {
-                        if (!tasks[currentMainKey]) tasks[currentMainKey] = {};
-                        tasks[currentMainKey][currentSubName] = {
-                            headers: headers,
-                            rows: newRows
-                        };
-                        
-                        saveToLocalStorage();
-                        alert(`Đã nạp ${newRows.length} dòng dữ liệu vào menu con "${currentSubName}".`);
-                        console.log(`Headers:`, headers);
-                        console.log(`Dữ liệu mẫu:`, newRows.slice(0, 3));
-
-                        render.all();
-                    } else {
-                        alert("Không có dữ liệu hợp lệ để nạp.");
-                    }
-                };
-                reader.readAsArrayBuffer(file);
-                event.target.value = '';
-            },
-
-            exportData: () => {
-                const dataStr = JSON.stringify(tasks, null, 2);
-                const blob = new Blob([dataStr], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `task_backup_${new Date().toISOString().slice(0,10)}.json`;
-                a.click();
-                URL.revokeObjectURL(url);
-            },
-
-            importData: (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const imported = JSON.parse(e.target.result);
-                        // Validate cơ bản
-                        if (typeof imported === 'object' && imported !== null) {
-                            tasks = imported;
-                            saveToLocalStorage();
-                            // Sau khi import, chuyển về menu hiện tại và render lại
-                            render.subMenu();
-                            render.all();
-                            alert('Import dữ liệu thành công!');
-                        } else {
-                            alert('File JSON không hợp lệ.');
-                        }
-                    } catch (err) {
-                        alert('Lỗi đọc file JSON: ' + err.message);
-                    }
-                };
-                reader.readAsText(file);
-                event.target.value = '';
-            },
-
-            clearAllData: () => {
-                if (confirm('Bạn có chắc muốn xóa toàn bộ dữ liệu?')) {
-                    tasks = {};
-                    saveToLocalStorage();
-                    render.subMenu();
-                    render.all();
-                }
-            }
-        };
-
-        window.App = {
-            selectMain: handlers.selectMain,
-            selectSub: handlers.selectSub,
-            updateRow: handlers.updateRow
-        };
-
-        // ==================== KHỞI TẠO ====================
-        function init() {
-            // Tải dữ liệu từ localStorage
-            loadFromLocalStorage();
+        {/* PHÂN VÙNG BÁO CÁO CHI TIẾT (REPORT VIEW) */}
+        {viewMode === "report" && (
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md p-8 md:p-12 max-w-4xl mx-auto space-y-8">
             
-            render.mainMenu();
-            handlers.selectMain("Sở");
-            
-            // Gán sự kiện cho các nút
-            document.getElementById('excelInput').addEventListener('change', handlers.handleExcelUpload);
-            document.getElementById('exportBtn').addEventListener('click', handlers.exportData);
-            document.getElementById('importInput').addEventListener('change', handlers.importData);
-            document.getElementById('clearBtn').addEventListener('click', handlers.clearAllData);
-        }
+            {/* Các tùy chọn cho chế độ xuất bản báo cáo */}
+            <div className="no-print flex justify-between items-center border-b border-slate-200 pb-6">
+              <button
+                onClick={() => setViewMode("eval")}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                ← Quay lại Nhập Liệu
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="px-5 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow transition-colors"
+              >
+                🖨️ In / Lưu file PDF Báo cáo
+              </button>
+            </div>
 
-        init();
-    })();
-</script>
-</body>
-</html>
+            {/* PHẦN QUỐC HIỆU TIÊU NGỮ THEO CHUẨN HÀNH CHÍNH VIỆT NAM */}
+            <div className="grid grid-cols-1 md:grid-cols-2 text-center md:text-left gap-4 pb-6 border-b border-slate-200">
+              <div>
+                <p className="font-bold text-sm uppercase tracking-wider text-slate-700">ỦY BAN NHÂN DÂN TỈNH TÂY NINH</p>
+                <p className="font-bold text-xs uppercase underline tracking-wider text-slate-500 mt-1">
+                  {activeTab === "dep" ? unitInfo.name : townshipInfo.name}
+                </p>
+              </div>
+              <div className="text-center md:text-right">
+                <p className="font-bold text-sm text-slate-800 uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
+                <p className="font-bold text-xs underline text-slate-600 mt-1">Độc lập - Tự do - Hạnh phúc</p>
+                <p className="text-xs text-slate-400 mt-2 italic">Tây Ninh, ngày 01 tháng 04 năm 2026</p>
+              </div>
+            </div>
+
+            {/* TIÊU ĐỀ BÁO CÁO CHÍNH THỨC */}
+            <div className="text-center py-6">
+              <h2 className="text-xl md:text-2xl font-bold text-slate-800 uppercase tracking-tight">BÁO CÁO THẨM ĐỊNH KẾT QUẢ</h2>
+              <h3 className="text-lg font-bold text-slate-700 uppercase mt-1">Đánh giá mức độ chuyển đổi số (DTI) năm 2026</h3>
+              <p className="text-xs text-slate-500 italic mt-1">(Ban hành kèm theo Quyết định số 5529/QĐ-UBND của UBND tỉnh Tây Ninh)</p>
+            </div>
+
+            {/* THÔNG TIN CHI TIẾT ĐƠN VỊ TỰ KHAI BÁO */}
+            <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
+              <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wide border-b border-slate-200 pb-2 mb-4">Thông tin đơn vị tự khai báo</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-slate-500"><strong className="text-slate-700">Tên đơn vị:</strong> {activeTab === "dep" ? unitInfo.name : townshipInfo.name}</p>
+                  <p className="text-slate-500 mt-2"><strong className="text-slate-700">Địa chỉ:</strong> {activeTab === "dep" ? unitInfo.address : townshipInfo.address}</p>
+                  <p className="text-slate-500 mt-2"><strong className="text-slate-700">Trang thông tin:</strong> {activeTab === "dep" ? unitInfo.website : townshipInfo.website}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500"><strong className="text-slate-700">Người chịu trách nhiệm:</strong> {activeTab === "dep" ? `${unitInfo.representative} (${unitInfo.position})` : `${townshipInfo.representative} (${townshipInfo.position})`}</p>
+                  <p className="text-slate-500 mt-2"><strong className="text-slate-700">Điện thoại liên hệ:</strong> {activeTab === "dep" ? unitInfo.phone : townshipInfo.phone}</p>
+                  <p className="text-slate-500 mt-2"><strong className="text-slate-700">Email công vụ:</strong> {activeTab === "dep" ? unitInfo.email : townshipInfo.email}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* KẾT QUẢ TỔNG HỢP DTI */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+              <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                <p className="text-xs font-bold text-emerald-800 uppercase tracking-wide">Điểm DTI Đạt Được</p>
+                <p className="text-3xl font-extrabold text-emerald-700 mt-1">{results.finalScore}</p>
+                <p className="text-xs text-emerald-600 mt-1">trên tổng {results.maxGrandTotal} điểm tối đa</p>
+              </div>
+              <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">Tỷ Lệ Hoàn Thành</p>
+                <p className="text-3xl font-extrabold text-blue-700 mt-1">{Math.round((results.finalScore / results.maxGrandTotal) * 1000) / 10}%</p>
+                <p className="text-xs text-blue-600 mt-1">tiến trình số hóa toàn diện</p>
+              </div>
+              <div className={`p-4 rounded-xl border ${results.ratingBg}`}>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Xếp Loại Đơn Vị</p>
+                <p className={`text-3xl font-extrabold mt-1 ${results.ratingColor}`}>{results.rating}</p>
+                <p className="text-xs text-slate-500 mt-1">theo thang điểm QĐ 5529</p>
+              </div>
+            </div>
+
+            {/* BẢNG PHÂN TÍCH TIÊU CHÍ THẨM ĐỊNH CHI TIẾT */}
+            <div className="space-y-6">
+              <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wide border-b border-slate-200 pb-2">Bảng kê chi tiết kết quả thẩm định tự động</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700 border-b border-slate-200">
+                      <th className="py-3 px-4 font-bold text-xs uppercase tracking-wide">Mã</th>
+                      <th className="py-3 px-4 font-bold text-xs uppercase tracking-wide">Tên chỉ tiêu đánh giá</th>
+                      <th className="py-3 px-4 font-bold text-xs uppercase tracking-wide text-center">Điểm tối đa</th>
+                      <th className="py-3 px-4 font-bold text-xs uppercase tracking-wide text-center">Điểm đạt</th>
+                      <th className="py-3 px-4 font-bold text-xs uppercase tracking-wide text-right">Tình trạng</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {results.breakdown.map(pillar => (
+                      <React.Fragment key={pillar.id}>
+                        <tr className="bg-slate-50 font-bold text-slate-800">
+                          <td colSpan="2" className="py-2.5 px-4">{pillar.name}</td>
+                          <td className="py-2.5 px-4 text-center">{pillar.maxScore}</td>
+                          <td className="py-2.5 px-4 text-center text-emerald-700">{pillar.score}</td>
+                          <td className="py-2.5 px-4 text-right">
+                            {pillar.score === pillar.maxScore ? "✅ Trọn vẹn" : "⚠️ Thiếu điểm"}
+                          </td>
+                        </tr>
+                        {pillar.items.map(item => (
+                          <tr key={item.id} className="hover:bg-slate-50/40 text-slate-600">
+                            <td className="py-2 px-4 font-medium text-xs">{item.code}</td>
+                            <td className="py-2 px-4 text-xs font-semibold text-slate-700">{item.title}</td>
+                            <td className="py-2 px-4 text-center text-xs">{item.maxScore}</td>
+                            <td className="py-2 px-4 text-center text-xs font-bold text-slate-800">{item.score}</td>
+                            <td className="py-2 px-4 text-right text-xs">
+                              {item.score === item.maxScore ? (
+                                <span className="text-emerald-600 font-semibold">Đạt tối đa</span>
+                              ) : (
+                                <span className="text-amber-600">Chưa đạt ({Math.round((item.maxScore - item.score)*10)/10}đ)</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* CHỮ KÝ XÁC NHẬN BÁO CÁO */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-12 text-center text-sm">
+              <div>
+                <p className="font-bold text-slate-700 uppercase">Cán bộ phụ trách Chuyển đổi số</p>
+                <p className="text-slate-400 text-xs mt-1 italic">(Ký, ghi rõ họ tên)</p>
+                <div className="h-20"></div>
+                <p className="font-semibold text-slate-800">....................................................</p>
+              </div>
+              <div>
+                <p className="font-bold text-slate-700 uppercase">Thủ trưởng cơ quan, đơn vị</p>
+                <p className="text-slate-400 text-xs mt-1 italic">(Ký, đóng dấu công vụ hoặc ký số hợp lệ)</p>
+                <div className="h-20"></div>
+                <p className="font-bold text-slate-800">
+                  {activeTab === "dep" ? unitInfo.representative : townshipInfo.representative}
+                </p>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+      </main>
+
+      {/* FOOTER */}
+      <footer className="bg-slate-900 text-slate-400 py-8 mt-16 border-t border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 text-center space-y-2">
+          <p className="text-sm font-semibold">© 2026 Sở Khoa học và Công nghệ tỉnh Tây Ninh - Sở Thông tin và Truyền thông phối hợp vận hành</p>
+          <p className="text-xs text-slate-500">Mã nguồn phần mềm tối ưu hóa quy trình tự thẩm định DTI trực tuyến. Đã cấu hình và sẵn sàng xuất bản trên Github Pages.</p>
+        </div>
+      </footer>
+    </div>
+  );
+}
